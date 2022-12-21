@@ -41,6 +41,8 @@ Example of particle and vortex dynamics on a prolate spheroid with aspect ratio 
  <img src="http://img.youtube.com/vi/M6JfDUZr97I/maxresdefault.jpg" alt="Watch the video" width="480" height="270" border="0" />
 </a>
 
+[![Everything Is AWESOME](https://img.youtube.com/vi/StTqXEQ2l-Y/0.jpg)](https://www.youtube.com/watch?v=StTqXEQ2l-Y "Everything Is AWESOME")
+
 ---
 
 ## Reference
