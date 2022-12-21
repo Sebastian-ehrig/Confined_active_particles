@@ -27,6 +27,28 @@ All simulations have been performed in Matlab R2015b by solving an overdamped di
 
 For more details of the model please see publication.
 
+---
+### Example Videos
+
+Markdown style
+
+[![Watch the video](https://img.youtube.com/vi/nTQUwghvy5Q/default.jpg)](https://youtu.be/nTQUwghvy5Q)
+
+HTML style
+
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=nTQUwghvy5Q" target="_blank">
+ <img src="http://img.youtube.com/vi/nTQUwghvy5Q/mqdefault.jpg" alt="Watch the video" width="240" height="180" border="10" />
+</a>
+
+Thumbnail
+
+![alt text][image]
+[image]: https://img.youtube.com/vi/M6JfDUZr97I/1.jpg "alt_txt"
+
+https://www.youtube.com/watch?v=M6JfDUZr97I
+
+---
+
 ## Reference
 
 Ehrig, S., Ferracci, J., Weinkamer, R., & Dunlop, J. W. Curvature-controlled defect dynamics in active systems. Phys. Rev. E 95, 062609 (2017)
