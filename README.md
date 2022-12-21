@@ -25,7 +25,7 @@ The particle motion on the curved surface is performed by an unconstrained motio
 
 All simulations have been performed in Matlab R2015b by solving an overdamped differential equations of motion using a forward Euler integration method with a fixed time step. Model paprameters have been chosen such that the study is in the regime of low noise and low energy and particles interact virually as hard spheres. 
 
-For more details of the model please see publication.
+For more details on the model please see publication.
 
 ---
 ### Example Videos
