@@ -33,15 +33,8 @@ For more details of the model please see publication.
 HTML style
 
 <a href="https://www.youtube.com/watch?v=M6JfDUZr97I" target="_blank">
- <img src="http://img.youtube.com/vi/M6JfDUZr97I/hqdefault.jpg" alt="Watch the video" width="480" height="360" border="0" />
+ <img src="http://img.youtube.com/vi/M6JfDUZr97I/maxresdefault.jpg" alt="Watch the video" width="480" height="360" border="0" />
 </a>
-
-Thumbnail
-
-![alt text][image]
-[image]: https://img.youtube.com/vi/M6JfDUZr97I/1.jpg "alt_txt"
-
-https://www.youtube.com/watch?v=M6JfDUZr97I
 
 ---
 
