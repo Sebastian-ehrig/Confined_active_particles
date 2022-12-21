@@ -1,4 +1,4 @@
-# Polar active particle on arbitrary curved surfaces.
+# Polar active particle on arbitrary curved surfaces
 
 The aim of the model is to explores the effect of surface curvature on the collective behaviour and pattern formation of active particles.
 
@@ -8,7 +8,7 @@ The results of the simulation for ellipsoidal surfaces have been published at "P
 
 The accepted version of the paper is available for free on arxiv: https://arxiv.org/abs/1610.05987.
 
-# Theoretical Model
+## Theoretical Model
 
 The model described in the publication is a Vicsek type model (Vicsek et al. 1995, Physical review letters 75(6): 1226) of spherical active particles with a fixed radius confined to the surface of an ellipsoid. Particle interactions are modelled through forces between neighbouring particles that tend to align their velocities (adapted from Szabo et al. 2006, Physical Review E 74(6): 061908).
 
@@ -17,6 +17,8 @@ The particle motion on the curved surface is performed by an unconstrained motio
 All simulations have been performed in Matlab R2015b by solving an overdamped differential equations of motion using a forward Euler integration method with a fixed time step. Model paprameters have been chosen such that the study is in the regime of low noise and low energy and particles interact virually as hard spheres. 
 
 For more details of the model please see publication.
+
+## Reference
 
 Ehrig, S., Ferracci, J., Weinkamer, R., & Dunlop, J. W. Curvature-controlled defect dynamics in active systems. Phys. Rev. E 95, 062609 (2017)
 https://journals.aps.org/pre/abstract/10.1103/PhysRevE.95.062609
