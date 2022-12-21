@@ -1,6 +1,8 @@
 # Polar active particle on arbitrary curved surfaces
 
 [![Generic badge](https://img.shields.io/badge/arXiv-1610.05987-<COLOR>.svg)](https://arxiv.org/abs/1610.05987)
+[![Generic badge](https://img.shields.io/badge/Phys.Rev.E-1062609-<COLOR>.svg)]([https://arxiv.org/abs/1610.05987](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.95.062609))
+[![Generic badge](https://img.shields.io/badge/Matlab-R2015b-<COLOR>.svg)]
 [![MIT License](https://img.shields.io/apm/l/atomic-design-ui.svg?)](./LICENSE)
 
 ---
@@ -12,6 +14,8 @@ It is part of a wider research initiative in the context of pattern formation in
 The results of the simulation for ellipsoidal surfaces have been published at "Phys. Rev. E 95, 062609; Curvature-controlled defect dynamics in active systems", https://journals.aps.org/pre/abstract/10.1103/PhysRevE.95.062609.
 
 The accepted version of the paper is available for free on arxiv: https://arxiv.org/abs/1610.05987.
+
+---
 
 ## Theoretical Model
 
