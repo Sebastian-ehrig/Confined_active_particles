@@ -7,7 +7,7 @@
 
 ---
 
-The aim of the model is to explores the effect of surface curvature on the collective behaviour of active particles.
+This model was developed to explores the effect of surface curvature on the collective behaviour of active (self-propelled) particles.
 
 It is part of a wider research initiative in the context of pattern formation in biological systems.
 
