@@ -30,10 +30,15 @@ For more details of the model please see publication.
 ---
 ### Example Videos
 
-HTML style
+Supplemental material Movies of the paper ["Curvature-controlled defect dynamics in active systems"](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.95.062609).
+Points of constant normal curvature (umbilics) are highlighted as red spheres, black arrows are the particle orientation vectors and the surface is color-coded according to the vortex order parameter (VOP, dark blue for VOP=0 and yellow for VOP=1).
+
+##### Movie 1
+
+Example of particle and vortex dynamics on a prolate spheroid with aspect ratio x/z = 0.25.
 
 <a href="https://www.youtube.com/watch?v=M6JfDUZr97I" target="_blank">
- <img src="http://img.youtube.com/vi/M6JfDUZr97I/maxresdefault.jpg" alt="Watch the video" width="480" height="360" border="0" />
+ <img src="http://img.youtube.com/vi/M6JfDUZr97I/maxresdefault.jpg" alt="Watch the video" width="480" height="270" border="0" />
 </a>
 
 ---
