@@ -30,14 +30,10 @@ For more details of the model please see publication.
 ---
 ### Example Videos
 
-Markdown style
-
-[![Watch the video](https://img.youtube.com/vi/nTQUwghvy5Q/default.jpg)](https://youtu.be/nTQUwghvy5Q)
-
 HTML style
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=nTQUwghvy5Q" target="_blank">
- <img src="http://img.youtube.com/vi/nTQUwghvy5Q/mqdefault.jpg" alt="Watch the video" width="240" height="180" border="10" />
+<a href="https://www.youtube.com/watch?v=M6JfDUZr97I" target="_blank">
+ <img src="http://img.youtube.com/vi/M6JfDUZr97I/hqdefault.jpg" alt="Watch the video" width="480" height="360" border="0" />
 </a>
 
 Thumbnail
