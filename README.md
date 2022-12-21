@@ -1,5 +1,10 @@
 # Polar active particle on arbitrary curved surfaces
 
+[![Generic badge](https://img.shields.io/badge/arXiv-1610.05987-<COLOR>.svg)](https://arxiv.org/abs/1610.05987)
+[![MIT License](https://img.shields.io/apm/l/atomic-design-ui.svg?)](./LICENSE)
+
+---
+
 The aim of the model is to explores the effect of surface curvature on the collective behaviour and pattern formation of active particles.
 
 It is part of a wider research initiative in the context of pattern formation in biological systems.
