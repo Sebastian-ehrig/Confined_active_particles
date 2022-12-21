@@ -30,22 +30,20 @@ For more details of the model please see publication.
 ---
 ### Example Videos
 
-Supplemental material Movies of the paper ["Curvature-controlled defect dynamics in active systems"](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.95.062609).
+Supplemental material Movies of the paper ["Curvature-controlled defect dynamics in active systems"](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.95.062609) showing particle and vortex dynamics on ellipsoidal surfaces of various aspect ratio.
 Points of constant normal curvature (umbilics) are highlighted as red spheres, black arrows are the particle orientation vectors and the surface is color-coded according to the vortex order parameter (VOP, dark blue for VOP=0 and yellow for VOP=1).
 
-##### Movie 1
+#### Movie 1
 
-Example of particle and vortex dynamics on a prolate spheroid with aspect ratio x/z = 0.25.
-
-<a href="https://www.youtube.com/watch?v=M6JfDUZr97I" target="_blank">
- <img src="http://img.youtube.com/vi/M6JfDUZr97I/maxresdefault.jpg" alt="Watch the video" width="480" height="270" border="0" />
-</a>
-
+Prolate spheroid with aspect ratio x/z = 0.25.
 
 https://user-images.githubusercontent.com/102523524/208914480-f1010653-5fbc-4a3c-ba60-4246b6f5829d.mp4
 
+#### Movie 2
 
+Oblate spheroid with aspect ratio x/z = 4.
 
+https://user-images.githubusercontent.com/102523524/208915160-afaf0adf-35be-401f-b2a1-544532e0afed.mp4
 
 ---
 
