@@ -1,7 +1,7 @@
 # Polar active particle on arbitrary curved surfaces
 
 [![Generic badge](https://img.shields.io/badge/arXiv-1610.05987-green.svg)](https://arxiv.org/abs/1610.05987)
-[![Generic badge](https://img.shields.io/badge/Phys.Rev.E-1062609-yellow.svg)]([https://arxiv.org/abs/1610.05987](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.95.062609))
+[![Generic badge](https://img.shields.io/badge/Phys.Rev.E-1062609-yellow.svg)](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.95.062609)
 ![Generic badge](https://img.shields.io/badge/Matlab-R2015b-blue.svg)
 [![MIT License](https://img.shields.io/apm/l/atomic-design-ui.svg?)](./LICENSE)
 
