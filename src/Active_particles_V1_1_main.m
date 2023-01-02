@@ -2,13 +2,12 @@ clear all;
 close all;
 tic
 
-addpath('./functions')
-UpFolder = fileparts(pwd);
+addpath('src/functions')
+UpFolder = pwd;
 
 % Import an STL mesh, returning a PATCH-compatible face-vertex structure
-namestructure = 'ellipsoid_x4_y2.5_z1_coarse_mesh_refSph6_sigma_0.416_N829_Area452.389';
+namestructure = 'ellipsoid_x4';
 
-%namestructure = 'prolate_spheroid_aspr8_coarse_mesh_area621.0128area_refSph7';
 [Faces,Vertex,N] = stlread(fullfile(UpFolder,'meshes',[namestructure,'.stl']));
 
 %%
@@ -33,11 +32,11 @@ visible_off = 0; % 0 to display figure while plotting them, 1 to just save
                  
 movie_making = 1; % 1 for movies, 0 for saving images
 
-num_part = 828; % number particles
+num_part = 200; % number particles
 v0 = 0.1; % velocity of particles
 v0_next = 0.1;% if velocity is to be changed after a certain number of timesteps
 
-num_step =  3000; %Number of timesteps
+num_step = 300; %Number of timesteps
 
 Area=452.389; % total surface area (should be extracted from mesh-name)
 
@@ -78,7 +77,7 @@ tot_F = zeros(num_step/plotstep,1);
 
 particle_info = struct;
 
-
+% TODO 
 name_data = [namestructure,'_N_',num2str(num_part),'_rho_',num2str(rho)...
         ,'_F_rep_',num2str(k),'_F_adh_',num2str(k_adh),'_tau_',num2str(tau),'_b_',num2str(b),...
         '_s',num2str(v0),'_t',num2str(num_step),'_fps',num2str(25)];
@@ -92,7 +91,97 @@ if exist(mesh_struct,'file') == 2
     load(mesh_struct);
     F_neighbourg = F.mesh;
 else
-    F_neighbourg = Mesh_neighbour_projV1_1(namestructure,1.1*v0);
+    name_structure = namestructure
+    [Faces,Vertex,N] = stlread(fullfile(UpFolder,'meshes',[name_structure,'.stl']));
+
+    %%%%%%%%%%%%%%%%%
+    % Create index matrix of neighbourg faces to each face
+    %%%%%%%%%%%%%%%%%%
+    mesh_struct = fullfile(UpFolder,'meshes',[name_structure,'_proj.mat']);
+    
+    F_neighbourg = nan(length(Faces(:,1)),100);
+    Faces_coord = cat(3,[Vertex(Faces(:,1),1),Vertex(Faces(:,2),1),...
+        Vertex(Faces(:,3),1)],[Vertex(Faces(:,1),2),Vertex(Faces(:,2),2),...
+        Vertex(Faces(:,3),2)],[Vertex(Faces(:,1),3),Vertex(Faces(:,2),3),...
+        Vertex(Faces(:,3),3)]);
+    
+    demo_neighbour = 0; % 1 to show neighbourgh of each face
+    max_neighbour = 0;
+    % Loop for to search all neighbours for each faces within a radius 
+    % "radius_search" centered around the isobarycenter of the face. 
+    % The face are considered within the radius if at least one of the
+    % vertex is within. radius_search = displacement of particle + distance
+    % between isobarcenter and verteces of face considered
+    for i = 1:length(Faces(:,1))
+        % Coord vector all faces verteces to vertex 1 of this face
+        center_faces = [...
+            Faces_coord(i,1,1)+Faces_coord(i,2,1)+Faces_coord(i,3,1),...
+            Faces_coord(i,1,2)+Faces_coord(i,2,2)+Faces_coord(i,3,2),...
+            Faces_coord(i,1,3)+Faces_coord(i,2,3)+Faces_coord(i,3,3)...
+            ]/3.;
+        extra_dist = sqrt((center_faces(1)-Faces_coord(i,1,1))^2+...
+            (center_faces(2)-Faces_coord(i,1,2))^2+...
+            (center_faces(3)-Faces_coord(i,1,3))^2);
+        radius_search = extra_dist+dist_motion;
+        Faces2center = Faces_coord-cat(3,center_faces(1)*ones(size(Faces)),...
+            center_faces(2)*ones(size(Faces)),center_faces(3)*...
+            ones(size(Faces)));
+        % Norm^2 vector all faces verteces to vertex 1 of this face
+        Faces2center = Faces2center(:,:,1).*Faces2center(:,:,1)+...
+            Faces2center(:,:,2).*Faces2center(:,:,2)+Faces2center(:,:,3).*...
+            Faces2center(:,:,3);
+        % Assign the value zero if vertex too far form center
+        Faces2center(Faces2center>radius_search^2) = 0;
+        % Sum the distance of vertices for each faces
+        Faces2center = Faces2center(:,1)+Faces2center(:,2)+Faces2center(:,3);
+        % Create coefficient matrix for neighbourg of center of considered face.
+        % Only faces with non zero distances are valid.
+        index_row = find(Faces2center>0);
+        if demo_neighbour == 1   
+            figure()
+            plot3([Faces_coord(i,1,1),Faces_coord(i,2,1),Faces_coord(i,3,1),...
+                Faces_coord(i,1,1)],[Faces_coord(i,1,2),Faces_coord(i,2,2),Faces_coord(i,3,2),...
+                Faces_coord(i,1,2)],[Faces_coord(i,1,3),Faces_coord(i,2,3),Faces_coord(i,3,3),...
+                Faces_coord(i,1,3)],'r')
+            hold on
+            for index1 = 1:length(index_row)
+                index = real(index_row(index1));
+                plot3([Faces_coord(index,1,1),Faces_coord(index,2,1),Faces_coord(index,3,1),...
+                    Faces_coord(index,1,1)],[Faces_coord(index,1,2),Faces_coord(index,2,2),Faces_coord(index,3,2),...
+                    Faces_coord(index,1,2)],[Faces_coord(index,1,3),Faces_coord(index,2,3),Faces_coord(index,3,3),...
+                    Faces_coord(index,1,3)],'b')
+            end
+            plot3([Faces_coord(i,1,1),Faces_coord(i,2,1),Faces_coord(i,3,1),...
+                Faces_coord(i,1,1)],[Faces_coord(i,1,2),Faces_coord(i,2,2),Faces_coord(i,3,2),...
+                Faces_coord(i,1,2)],[Faces_coord(i,1,3),Faces_coord(i,2,3),Faces_coord(i,3,3),...
+                Faces_coord(i,1,3)],'r')
+            plot3((Faces_coord(i,1,1)+Faces_coord(i,2,1)+Faces_coord(i,3,1))/3,...
+                (Faces_coord(i,1,2)+Faces_coord(i,2,2)+Faces_coord(i,3,2))/3,...
+                (Faces_coord(i,1,3)+Faces_coord(i,2,3)+Faces_coord(i,3,3))/3,...
+                '*r')
+            plot3([(Faces_coord(i,1,1)+Faces_coord(i,2,1)+Faces_coord(i,3,1))/3,...
+                (Faces_coord(i,1,1)+Faces_coord(i,2,1)+Faces_coord(i,3,1))/3+radius_search],...
+                [(Faces_coord(i,1,2)+Faces_coord(i,2,2)+Faces_coord(i,3,2))/3,...
+                (Faces_coord(i,1,2)+Faces_coord(i,2,2)+Faces_coord(i,3,2))/3],...
+                [(Faces_coord(i,1,3)+Faces_coord(i,2,3)+Faces_coord(i,3,3))/3,...
+                (Faces_coord(i,1,3)+Faces_coord(i,2,3)+Faces_coord(i,3,3))/3],...
+                'g')
+    
+            hold off
+            %F_neighbourg(i,1:max_neighbour)
+            pause
+            close all
+        end
+        F_neighbourg(i,1:length(index_row)) = index_row';
+        F_neighbourg(i,1+length(index_row)) = i;
+        max_neighbour = max([length(index_row)+1,max_neighbour]);
+    end
+    F_neighbourg(F_neighbourg == 0) = nan;
+    F_neighbourg(:,max_neighbour+1:end) = [];
+    F = struct('mesh',F_neighbourg);
+    save(mesh_struct,'F')
+
+
 end
 if exist(folder_plots,'dir') ~= 7
      mkdir(folder_plots)
@@ -819,7 +908,7 @@ if movie_making == 1
 
 end
 file_struct = fullfile(folder_particle_simula,[name_data,'.mat']);
-%file_structCSV = fullfile(folder_particle_simula,[namestructure,'.csv']);
+
 save(file_struct,'-struct','particle_info','-v7.3')
 %struct2csv(file_struct,file_structCSV)
 display(['Times elapsed in hour: ',num2str(toc/3600)])

@@ -2,7 +2,7 @@
 
 [![Generic badge](https://img.shields.io/badge/arXiv-1610.05987-green.svg)](https://arxiv.org/abs/1610.05987)
 [![Generic badge](https://img.shields.io/badge/Phys.Rev.E-95.062609-yellow.svg)](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.95.062609)
-![Generic badge](https://img.shields.io/badge/Matlab-R2015b-blue.svg)
+![Generic badge](https://img.shields.io/badge/Matlab-R2022b-blue.svg)
 [![Generic badge](https://img.shields.io/badge/License-AGPL3.0-orange.svg)](https://github.com/Sebastian-ehrig/Confined_active_particles/blob/main/LICENSE)
 
 ---
@@ -14,6 +14,12 @@ It is part of a wider research initiative in the context of pattern formation in
 The results of the simulation for ellipsoidal surfaces have been published in ["Curvature-controlled defect dynamics in active systems"]( https://journals.aps.org/pre/abstract/10.1103/PhysRevE.95.062609).
 
 The accepted version of the paper is available for free on arxiv: https://arxiv.org/abs/1610.05987.
+
+---
+
+## Requirements 
+
+You need the Statistics toolbox from Matlab installed.
 
 ---
 
