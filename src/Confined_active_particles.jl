@@ -8,13 +8,14 @@ using MeshIO  # good package
 using FileIO  # good package
 using Meshes
 using GeometryBasics  # great package
+using Statistics
 
 
 """
-    find_nonzero_index(c)
+    find_nonzero_index(c::Array)
 
 """
-function find_nonzero_index(c)
+function find_nonzero_index(c::Array)
     a = similar(c, Int)
     count = 1
     @inbounds for i in eachindex(c)
@@ -26,11 +27,20 @@ end
 
 
 """
-    dim_data(V, F, dim)
+    dim_data(V::Array{Float32, 2}, F, dim::Int)
 
 """
-function dim_data(V, F, dim)
+function dim_data(V::Array{Float32, 2}, F, dim::Int)
     return reduce(vcat,transpose.([V[F[:,1],dim],V[F[:,2],dim],V[F[:,3],dim]]))'
+end
+
+
+"""
+    vec_of_vec_to_array(V::Array{Float32, 2})
+transform vector of vectors to matrix
+"""
+function vec_of_vec_to_array(V)
+    reduce(vcat,transpose.(V))  
 end
 
 
@@ -48,7 +58,7 @@ N = mesh_loaded.normals
 # faces = GeometryBasics.decompose(TriangleFace{Int}, mesh_loaded)  # return the faces of the mesh
 vertices = GeometryBasics.coordinates(mesh_loaded)  # return the vertices of the mesh
 faces = reshape(1:length(vertices), 3, :)'  # return the faces of the mesh
-vertices = reduce(vcat,transpose.(vertices))
+vertices = vec_of_vec_to_array(vertices)
 
 Vertex = vertices
 Faces = faces
@@ -70,46 +80,46 @@ Faces_coord = cat(dim_data(Vertex, Faces, 1), dim_data(Vertex, Faces, 2), dim_da
 # Define Model Parameters
 ##############################################################
 
-visible_off = 0; # 0 to display figure while plotting them, 1 to just save them without being displayed first
+const visible_off = 0; # 0 to display figure while plotting them, 1 to just save them without being displayed first
 
-movie_making = 1; #1 for movies, 0 for saving images
+const movie_making = 1; #1 for movies, 0 for saving images
 
-num_part = 200; # number particles
-v0 = 0.1; # velocity of particles
-v0_next = 0.1; # if velocity is to be changed after a certain number of timesteps
+const num_part = 200; # number particles
+const v0 = 0.1; # velocity of particles
+const v0_next = 0.1; # if velocity is to be changed after a certain number of timesteps
 
-num_step = 300; # Number of timesteps
+const num_step = 300; # Number of timesteps
 
-Area=452.389; # total surface area
+const Area=452.389; # total surface area
 
-sigma_n = 5/12; # particle radius
+const sigma_n = 5/12; # particle radius
 
-phi_pack=(num_part*pi*(sigma_n^2))/Area; # packing-fraction (~density)
+const phi_pack=(num_part*pi*(sigma_n^2))/Area; # packing-fraction (~density)
 
 # Define parameters for the force calculations:
 # ---------------------------------------------
-r_adh = 1; # Cut off radius for adhesive forces
-k = 10.; # Elastic constant for repulsive forces
-k_next = 10.; # value of elastic constant after a certain number of timesteps
-k_adh = 0.75; # Adhesive forces
+const r_adh = 1; # Cut off radius for adhesive forces
+const k = 10.; # Elastic constant for repulsive forces
+const k_next = 10.; # value of elastic constant after a certain number of timesteps
+const k_adh = 0.75; # Adhesive forces
 
-mu = 1.; # arbitrary mass of particle
-tau = 1; #time of relaxation of collision between 2 particles
+const mu = 1.; # arbitrary mass of particle
+const tau = 1; #time of relaxation of collision between 2 particles
 
-dt = 0.01*tau; # Step size
-plotstep = 0.1/dt; # Number of calculation between plot
+const dt = 0.01*tau; # Step size
+const plotstep = 0.1/dt; # Number of calculation between plot
 
-# a = 0.5; # arbitrary value
-b = v0_next/(2*sigma_n*mu*k_next); # for calculating coupling constant
-J = b/tau; # Coupling constant of orientation vectors
-noise=0.002/tau;  #value of the noise amplitude
-hi=noise/(2*sqrt(dt)); # Amplitude of the noise on orientation
+# const a = 0.5; # arbitrary value
+const b = v0_next/(2*sigma_n*mu*k_next); # for calculating coupling constant
+const J = b/tau; # Coupling constant of orientation vectors
+const noise=0.002/tau;  #value of the noise amplitude
+const hi=noise/(2*sqrt(dt)); # Amplitude of the noise on orientation
 
 # Parameters for making movies:
 #------------------------------
-rho = 6; # arbitrary value for scaling the vector on plotting. To automatize, maybe from file name value
-scale=0.1*rho; # Scale the vector for making movies
-fps = 25; # Frame per second of movie
+const rho = 6; # arbitrary value for scaling the vector on plotting. To automatize, maybe from file name value
+const scale=0.1*rho; # Scale the vector for making movies
+const fps = 25; # Frame per second of movie
 
 time_points = Int(num_step/plotstep)
 v_order = zeros(time_points, 1)
@@ -129,15 +139,13 @@ folder_plots = joinpath(UpFolder, "images", namestructure)
 folder_particle_simula = joinpath(UpFolder, "simulation_structure")
 
 
-name_structure = namestructure
-
 ##############################################################
 # Create index matrix of neighbourg faces to each face
 ##############################################################
 
 F_neighbourg = fill(NaN, length(Faces[:,1]), 100)  # matrix of neighbourg faces
 
-max_neighbour = 0  # maximum number of neighbourg faces
+maximum_neighbour = 0  # maximumimum number of neighbourg faces
 # % Loop for to search all neighbours for each faces within a radius 
 # % "radius_search" centered around the isobarycenter of the face. 
 # % The face are considered within the radius if at least one of the
@@ -169,13 +177,13 @@ for i = 1:length(Faces[:,1])
     F_neighbourg[i,1:length(index_row)] = index_row'
     F_neighbourg[i,1+length(index_row)] = i
 
-    if length(index_row)+1 > max_neighbour
-        max_neighbour = length(index_row)+1
+    if length(index_row)+1 > maximum_neighbour
+        maximum_neighbour = length(index_row)+1
     end
 
 end
 F_neighbourg[F_neighbourg .== 0] .= NaN
-# F_neighbourg[:,max_neighbour+1:end] = []  # TODO: checken, was das machen soll
+# F_neighbourg[:,maximum_neighbour+1:end] = []  # TODO: checken, was das machen soll
 
 
 ##############################################################
@@ -190,115 +198,121 @@ if !isdir(folder_particle_simula)
 end
 
 
+##############################################################
+# Define perpendicular projection functions, adapted from "PhysRevE 91 022306"
+##############################################################
 
-# NOTE: end of workday 02.01.2023
-
-
-
-
-# %%%%%%%%%%%%%%%%%
-# % Define perpendicular projection functions, adapted from "PhysRevE 91 022306"
-# %%%%%%%%%%%%%%%%%
-
-P_perp = @(a,b) (b-(sum(b.*a,2)./(sqrt(sum(a.^2,2)).^2)*ones(1,3)).*a);
+P_perp(a, b) = (b-(sum(b.*a,dims=2)./(sqrt(sum(a.^2,dims=2)).^2)*ones(1,3)).*a)
 # % % P_perp does a normal projection of the vector b on the plane normal to a
 # % % , the output c is a 2d array, num_part x 3
-P_plan = @(a,b,a1) ((sum(b.*a,2)./(sqrt(sum(a.^2,2)))*ones(1,3)).*...
-    [a[:,2].*a1[:,3]-a[:,3].*a1[:,2],-a[:,1].*a1[:,3]+a[:,3].*a1[:,1],...
-    a[:,1].*a1[:,2]-a[:,2].*a1[:,1]]);
+P_plan(a,b,a1) = ((sum(b.*a,dims=2)./(sqrt(sum(a.^2,dims=2)))*ones(1,3)).*[
+    a[:,2].*a1[:,3]-a[:,3].*a1[:,2],-a[:,1].*a1[:,3]+a[:,3].*a1[:,1],a[:,1].*a1[:,2]-a[:,2].*a1[:,1]
+    ])
 # % % P_plan does a projection of the vector b on vector normal to a1 in
 # % %the plane normal to a, the output c is a 2d array, num_part x 3
 
-# %%
-# %%%%%%%%%%%%%%%%%
+
+##############################################################
 # % Begin - Initialize particles with random initial orientation
-# %%%%%%%%%%%%%%%%%%
+##############################################################
 
 r = zeros(num_part,3); # Position of particles
 n = zeros(num_part,3); # Orientation of particles
 
-p1 = Vertex(Faces[:,1],:); # Vertex number 1 of each faces
-p2 = Vertex(Faces[:,2],:); # Vertex number 2 of each faces
-p3 = Vertex(Faces[:,3],:); # Vertex number 3 of each faces
+p1 = Vertex[Faces[:,1],:] # Vertex number 1 of each faces
+p2 = Vertex[Faces[:,2],:] # Vertex number 2 of each faces
+p3 = Vertex[Faces[:,3],:] # Vertex number 3 of each faces
 Norm_vect = ones(num_part,3); # Initialisation of normal vector of each faces
-num_face = NaN(num_part,length(F_neighbourg(1,:))^2); # Initialisation of face on which is the particle
+num_face = fill(NaN, num_part, length(F_neighbourg[1,:])^2)   # Initialisation of face on which is the particle
+
 # for-loop where particle are randomly positioned and orientated in a 3D
 # box, then projected on the closest face. The normal vector of that face
 # is then also saved
-
 for i=1:num_part
+
     # Randomly position and orientate particle number i
-    r[i,:] = [(max(Vertex[:,1])-min(Vertex[:,1]))*rand(1)+min(Vertex[:,1]),...
-        (max(Vertex[:,2])-min(Vertex[:,2]))*rand(1)+min(Vertex[:,2]),...
-        (max(Vertex[:,3])-min(Vertex[:,3]))*rand(1)+min(Vertex[:,3])]
-    
-#     r[i,:] = [((1+i)*sigma_n/i),((1+i)*sigma_n/i),((1+i)*sigma_n/i)]
-#     n[i,:] = [1,1,1]
+    r[i,:] = [(maximum(Vertex[:,1])-minimum(Vertex[:,1]))*rand(1)[1]+minimum(Vertex[:,1]),
+        (maximum(Vertex[:,2])-minimum(Vertex[:,2]))*rand(1)[1]+minimum(Vertex[:,2]),
+        (maximum(Vertex[:,3])-minimum(Vertex[:,3]))*rand(1)[1]+minimum(Vertex[:,3])
+        ]
 
     #random particle orientation
-    n[i,:] = [-1+2*rand(1),-1+2*rand(1),-1+2*rand(1)]
+    n[i,:] = [-1+2*rand(1)[1],-1+2*rand(1)[1],-1+2*rand(1)[1]]
 
     # Initialize number faces candidates
-    face_candi = NaN(1,length(num_face[i,:]))
+    face_candi = fill(NaN, 1, length(num_face[i,:]))
     candi_num = 0
     # Vector of particle to faces
-    face_coord_temp = Faces_coord - cat(3,ones(size(Faces_coord[:,:,3]))*...
-        r[i,1],ones(size(Faces_coord[:,:,3]))*...
-        r[i,2],ones(size(Faces_coord[:,:,3]))*...
-        r[i,3])
-    # Distance of particle to faces
-    Dist2faces = sqrt(sum(face_coord_temp.^2,3))
-    # Faces with closest point to r[i,:] and associated normal vectors
-    index_binary = find(sum(Dist2faces == min(min(Dist2faces)),2) > 0)
-    face_coord_temp = Faces_coord[index_binary,:,:]
-    N_temp = N[index_binary,:]
-    particle = cat(2,ones(size(face_coord_temp[:,1,3]))*...
-        r[i,1],ones(size(face_coord_temp[:,1,3]))*...
-        r[i,2],ones(size(face_coord_temp[:,1,3]))*...
-        r[i,3])
+    face_coord_temp = Faces_coord - cat(ones(size(Faces_coord[:,:,3]))*
+        r[i,1],ones(size(Faces_coord[:,:,3]))*
+        r[i,2],ones(size(Faces_coord[:,:,3]))*
+        r[i,3], dims=3)
 
-    p0s = particle - cat(2,sum((particle-reshape(face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3)).*N_temp,2),sum((particle-reshape(face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3)).*N_temp,2),sum((particle-reshape(face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3)).*N_temp,2).*N_temp;
+    # Distance of particle to faces
+    Dist2faces = sqrt.(sum(face_coord_temp.^2,dims=3)[:,:,1])
+
+    # Faces with closest point to r[i,:] and associated normal vectors
+    index_binary = first.(Tuple.(sum(findall(x->x==minimum(Dist2faces), Dist2faces), dims=2)))   # NOTE: maybe this is not correct
+    face_coord_temp = Faces_coord[index_binary,:,:]
+    N_temp = N[index_binary,:] |> vec_of_vec_to_array  # transform the vec of vec into array
+
+    particle = cat(dims=2,ones(size(face_coord_temp[:,1,3]))*r[i,1],
+        ones(size(face_coord_temp[:,1,3]))*r[i,2],
+        ones(size(face_coord_temp[:,1,3]))*r[i,3])
+
+    len_face_coord = length(face_coord_temp[:,1,1])
+    reshape_it = reshape(face_coord_temp[:,1,:],len_face_coord,3)
+    placeholder = sum((particle-reshape_it).*N_temp,dims=2)
+    p0s = particle - cat(placeholder, placeholder, placeholder, dims=2).*N_temp
+
     # Check what face in which the projection is
     p1p2 = reshape(face_coord_temp[:,2,:]-face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
     p1p3 = reshape(face_coord_temp[:,3,:]-face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
-    p1p3crossp1p2 = [p1p3[:,2].*p1p2[:,3]-p1p3[:,3].*p1p2[:,2],-p1p3[:,1].*p1p2[:,3]+p1p3[:,3].*p1p2[:,1],p1p3[:,1].*p1p2[:,2]-p1p3[:,2].*p1p2[:,1]];
     p1p0 = p0s-reshape(face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
-    p1p3crossp1p0 = [p1p3[:,2].*p1p0[:,3]-p1p3[:,3].*p1p0[:,2],-p1p3[:,1].*p1p0[:,3]+p1p3[:,3].*p1p0[:,1],p1p3[:,1].*p1p0[:,2]-p1p3[:,2].*p1p0[:,1]];
-    
-    p1p2crossp1p0 = [p1p2[:,2].*p1p0[:,3]-p1p2[:,3].*p1p0[:,2],-p1p2[:,1].*p1p0[:,3]+p1p2[:,3].*p1p0[:,1],p1p2[:,1].*p1p0[:,2]-p1p2[:,2].*p1p0[:,1]];
-    p1p2crossp1p3 = [p1p2[:,2].*p1p3[:,3]-p1p2[:,3].*p1p3[:,2],-p1p2[:,1].*p1p3[:,3]+p1p2[:,3].*p1p3[:,1],p1p2[:,1].*p1p3[:,2]-p1p2[:,2].*p1p3[:,1]];
-        
-    # % "index_face_in" are the row index(es) of face_coord_temp in which a
-    # % particle can be projected. 
-    # "index_binary(index_face_in)" are the faces number(s) in which the 
-    # particle can be projected
-    index_face_in = find((sum(p1p3crossp1p0.*p1p3crossp1p2,2)>=0) & (sum(p1p2crossp1p0.*p1p2crossp1p3,2)>=0)...
-        & ((sqrt(sum(p1p3crossp1p0.^2,2))+sqrt(sum(p1p2crossp1p0.^2,2)))./...
-        sqrt(sum(p1p2crossp1p3.^2,2)) <= 1));
+    p1p3crossp1p2 = [p1p3[:,2].*p1p2[:,3]-p1p3[:,3].*p1p2[:,2],-p1p3[:,1].*p1p2[:,3]+p1p3[:,3].*p1p2[:,1],p1p3[:,1].*p1p2[:,2]-p1p3[:,2].*p1p2[:,1]] |> vec_of_vec_to_array
+    p1p3crossp1p0 = [p1p3[:,2].*p1p0[:,3]-p1p3[:,3].*p1p0[:,2],-p1p3[:,1].*p1p0[:,3]+p1p3[:,3].*p1p0[:,1],p1p3[:,1].*p1p0[:,2]-p1p3[:,2].*p1p0[:,1]] |> vec_of_vec_to_array
+    p1p2crossp1p0 = [p1p2[:,2].*p1p0[:,3]-p1p2[:,3].*p1p0[:,2],-p1p2[:,1].*p1p0[:,3]+p1p2[:,3].*p1p0[:,1],p1p2[:,1].*p1p0[:,2]-p1p2[:,2].*p1p0[:,1]] |> vec_of_vec_to_array
+    p1p2crossp1p3 = [p1p2[:,2].*p1p3[:,3]-p1p2[:,3].*p1p3[:,2],-p1p2[:,1].*p1p3[:,3]+p1p2[:,3].*p1p3[:,1],p1p2[:,1].*p1p3[:,2]-p1p2[:,2].*p1p3[:,1]] |> vec_of_vec_to_array
+
+    len_p1p3crossp1p2 = length(p1p3crossp1p2[:,1])
+
     # "index_face_out" are the row index(es) of face_coord_temp in which a
     # particle cannot be projected. 
     # "index_binary(index_face_in)" are the faces number(s) in which the 
     # particle cannot be projected
-    index_face_out = find((sum(p1p3crossp1p0.*p1p3crossp1p2,2)<0) | (sum(p1p2crossp1p0.*p1p2crossp1p3,2)<0)...
-        | ((sqrt(sum(p1p3crossp1p0.^2,2))+sqrt(sum(p1p2crossp1p0.^2,2)))./...
-        sqrt(sum(p1p2crossp1p3.^2,2)) > 1));
-    
+    index_face_out = (sum(p1p3crossp1p0.*p1p3crossp1p2,dims=2).<0) .|
+        (sum(p1p2crossp1p0.*p1p2crossp1p3,dims=2).<0) .|
+        ((sqrt.(sum(p1p3crossp1p0.^2,dims=2))+sqrt.(sum(p1p2crossp1p0.^2,dims=2)))./
+        sqrt.(sum(p1p2crossp1p3.^2,dims=2)) .> 1) |> Array |> findall 
+    index_face_out= first.(Tuple.(index_face_out))
+
+    # % "index_face_in" are the row index(es) of face_coord_temp in which a
+    # % particle can be projected. 
+    # "index_binary(index_face_in)" are the faces number(s) in which the 
+    # particle can be projected
+    index_face_in = setdiff(index_face_out, reshape([1:len_p1p3crossp1p2;], :, 1))
+
     # If the projections are in no face, take the average projection and
     # normal vectors. Save the faces number used
     if isempty(index_face_in) == 1
-        Norm_vect[i,:] = mean(N_temp[index_face_out,:],1); 
-        r[i,:] = mean(p0s[index_face_out,:],1);
-        num_face[i,1:length(index_face_out)] = index_binary[index_face_out]';
+        Norm_vect[i,:] = mean(N_temp[index_face_out,:],dims=1)
+        r[i,:] = mean(p0s[index_face_out,:],dims=1)
+        num_face[i,1:length(index_face_out)] = index_binary[index_face_out]'
+
     # If the projections are in a face, save its number, normal vector and
     # projected point
     else
-        index_face_in = index_face_in[1]; # because first particle can be
+        index_face_in = index_face_in[1]  # because first particle can be
         # projected in different faces in this initial projection
-        Norm_vect[i,:] = N_temp[index_face_in,:];
-        num_face[i,1] = index_binary[index_face_in];
-        r[i,:] = p0s[index_face_in,:];
+        Norm_vect[i,:] = N_temp[index_face_in,:]
+        num_face[i,1] = index_binary[index_face_in]
+        r[i,:] = p0s[index_face_in,:]
     end
 end
+
+
+
+
 
 
 # % find faces closer to each points and associated normal vector
@@ -306,7 +320,7 @@ end
 
 # %Project the orientation of the corresponding faces using normal vectors
 n = P_perp(Norm_vect,n)
-n = n./(sqrt(sum(n.^2,2))*ones(1,3)) # And normalise orientation vector
+n = n./(sqrt.(sum(n.^2,2))*ones(1,3)) # And normalise orientation vector
 particle_info[Symbol("t",0)] = [r,n]
 #particle_info = setfield(particle_info,num2str(0),[r,n]);
 
@@ -372,7 +386,7 @@ for tt=1:num_step #number of time steps
     # % cross_Nij(1,2,2) = -(n(1,1)*n(2,3))+n(1,3)*n(2,1)
     # % cross_Nij(1,2,3) = n(1,1)*n(2,2)-(n(1,2)*n(2,1))
 
-    Distmat=sqrt(sum(Vect.^2,3)); %distance of each point with the others
+    Distmat=sqrt.(sum(Vect.^2,3)); %distance of each point with the others
     
     Fij_rep = (-k*(2*sigma_n-Distmat))./(2*sigma_n);
     Fij_rep((Distmat >= 2*sigma_n) | (Distmat == 0))= 0; % No force if
@@ -405,12 +419,12 @@ for tt=1:num_step #number of time steps
     # %%%%%%%%%%%%%%%%%%%%%%
     ncross = cat(2,n[:,2].*r_dot[:,3]-n[:,3].*r_dot[:,2],...
         -(n[:,1].*r_dot[:,3]-n[:,3].*r_dot[:,1]),...
-        n[:,1].*r_dot[:,2]-n[:,2].*r_dot[:,1])./(sqrt(sum(r_dot.^2,2))*ones(1,3));
+        n[:,1].*r_dot[:,2]-n[:,2].*r_dot[:,1])./(sqrt.(sum(r_dot.^2,2))*ones(1,3));
     n_cross_correction = (1/tau)*ncross*dt;
     new_n = n-cat(2,n[:,2].*n_cross_correction[:,3]-n[:,3].*n_cross_correction[:,2],...
         -(n[:,1].*n_cross_correction[:,3]-n[:,3].*n_cross_correction[:,1]),...
         n[:,1].*n_cross_correction[:,2]-n[:,2].*n_cross_correction[:,1]); #n+cross(n_cross_correction,n)
-    n = new_n./(sqrt(sum(new_n.^2,2))*ones(1,3));
+    n = new_n./(sqrt.(sum(new_n.^2,2))*ones(1,3));
     # %%%%%%%%%%%%%%%%%%%%%
     # % End Visceck-type n correction
     # %%%%%%%%%%%%%%%%%%%%%%
@@ -425,7 +439,7 @@ for tt=1:num_step #number of time steps
         # cell could migrate. Only face with at least one vertex within the
         # zone defined by the particle at its center and of radius r_dot*dt are
         # candidates for projection
-        radius_search = sqrt(sum(r_dot[i,:].^2))*dt
+        radius_search = sqrt.(sum(r_dot[i,:].^2))*dt
         number_faces = num_face[i,isnan(num_face[i,:]) == 0]
         if length(number_faces) == 1
             Faces_numbers1 = F_neighbourg[number_faces,:]
@@ -448,9 +462,9 @@ for tt=1:num_step #number of time steps
             r[i,2],ones(size(Faces_coord_temp[:,:,3]))*...
             r[i,3])
         # % Distance of particle to faces
-        Dist2faces = sqrt(sum(face_coord_temp.^2,3))
+        Dist2faces = sqrt.(sum(face_coord_temp.^2,3))
         # % Faces with closest point to r(i,:) and associated normal vectors
-        index_binary = find(sum(Dist2faces == min(min(Dist2faces)),2) > 0)
+        index_binary = find(sum(Dist2faces == minimum(minimum(Dist2faces)),2) > 0)
         face_coord_temp = Faces_coord_temp[index_binary,:,:]
         N_temp = NV[index_binary,:]
 
@@ -490,15 +504,15 @@ for tt=1:num_step #number of time steps
         # "index_binary(index_face_in)" are the faces number(s) in which the
         # particle can be projected
         index_face_in = find((sum(p1p3crossp1p0.*p1p3crossp1p2,2)>=0) & (sum(p1p2crossp1p0.*p1p2crossp1p3,2)>=0)...
-            & ((sqrt(sum(p1p3crossp1p0.^2,2))+sqrt(sum(p1p2crossp1p0.^2,2)))./...
-            sqrt(sum(p1p2crossp1p3.^2,2)) <= 1))
+            & ((sqrt.(sum(p1p3crossp1p0.^2,2))+sqrt.(sum(p1p2crossp1p0.^2,2)))./...
+            sqrt.(sum(p1p2crossp1p3.^2,2)) <= 1))
         # "index_face_out" are the row index(es) of face_coord_temp in which a
         # particle cannot be projected.
         # "index_binary(index_face_in)" are the faces number(s) in which the
         # particle cannot be projected
         index_face_out = find((sum(p1p3crossp1p0.*p1p3crossp1p2,2)<0) | (sum(p1p2crossp1p0.*p1p2crossp1p3,2)<0)...
-            | ((sqrt(sum(p1p3crossp1p0.^2,2))+sqrt(sum(p1p2crossp1p0.^2,2)))./...
-            sqrt(sum(p1p2crossp1p3.^2,2)) > 1))
+            | ((sqrt.(sum(p1p3crossp1p0.^2,2))+sqrt.(sum(p1p2crossp1p0.^2,2)))./...
+            sqrt.(sum(p1p2crossp1p3.^2,2)) > 1))
 
         # % If the projections are in no face, take the average projection and
         # % normal vectors. Save the faces number used
@@ -524,7 +538,7 @@ for tt=1:num_step #number of time steps
     # % find faces closer to each points and associated normal vector
     # %%%%%%%%%%%%
     n = P_perp(Norm_vect,n);
-    n = n./(sqrt(sum(n.^2,2))*ones(1,3));
+    n = n./(sqrt.(sum(n.^2,2))*ones(1,3));
     t=(tt-1)*dt;
     
     # %particle_info.num2str(tt) = [r,n];
@@ -545,10 +559,6 @@ for tt=1:num_step #number of time steps
         
         nr_dot_cross=[];
         for i=1:num_part
-            
-# %         ncross2=[Norm_vect[i,2].*r_dot[i,3]-Norm_vect[i,3].*r_dot[i,2],...
-# %         -(Norm_vect[i,1].*r_dot[i,3]-Norm_vect[i,3].*r_dot[i,1]),...
-# %         Norm_vect[i,1].*r_dot[i,2]-Norm_vect[i,2].*r_dot[i,1]];
             cross_Nrdot=cross(n[i,:],Norm_vect[i,:]);
             nr_dot_cross=[nr_dot_cross; cross_Nrdot./norm(cross_Nrdot)];
         end
@@ -558,13 +568,7 @@ for tt=1:num_step #number of time steps
         num_partic((Distmat == 0)|(Distmat > 2.4*sigma_n)) = 0;
         # %list of nearest neighbour to each particle
         number_neighbours=sum(num_partic,2);
-        
-#         % specify colorvalue "c" according to forces for particles to plot
-# %         F_color=[];
-# %         for i=1:num_part
-# %         F_color=[F_color norm(sum(F_track(i,:)))];
-# %         end
-# %         c=F_color;
+
         # % specify colorvalue "c" according to neighbours for particles to plot
         N_color=[];
         for i=1:num_part
@@ -578,27 +582,14 @@ for tt=1:num_step #number of time steps
         v_tp=[r[:,2]*r_dot[:,3]-r[:,3]*r_dot[:,2],-r[:,1]*r_dot[:,3]+r[:,3]*r_dot[:,1],...
             r[:,1]*r_dot[:,2]-r[:,2]*r_dot[:,1]];
         # Normalize v_tp
-        v_norm=v_tp./(sqrt(sum(v_tp.^2,2))*ones(1,3));
+        v_norm=v_tp./(sqrt.(sum(v_tp.^2,2))*ones(1,3));
         # Sum v_tp vectors and devide by number of particle to obtain order
         # parameter of collective motion for spheroids
         v_order(tt/plotstep)=(1/num_part)*norm(sum(v_norm,1));
-        
-        #Calculate angles for equirectangular map projection
-        phi1 = asin(r[:,3]/sqrt(sum(r.^2,2)));   # elevation angle
-        thet1 = atan2(r[:,2],r[:,1]); # azimuth
-        
-# %         phi1_dummy_points=-pi/2:pi/2/10:pi/2;
-# %         thet1_dummy_points=-pi:pi/10:pi;
-# %         phi1= [phi1; phi1_dummy_points'];
-# %         thet1= [thet1; thet1_dummy_points'];
-#         #gall-peters projection
-# %         phi1 = 2*sin(phi1);
-# %         thet1 = 2*thet1;
-        # %for cylinder projection
-        # %         phi1=r(:,3); %eleavation
-        # %         thet1 = atan2(r(:,2),r(:,1)); % azimuth
 
-        
+        #Calculate angles for equirectangular map projection
+        phi1 = asin(r[:,3]/sqrt.(sum(r.^2,2)));   # elevation angle
+        thet1 = atan2(r[:,2],r[:,1]); # azimuth
 
         # %Draw figure
         hFig = figure(1); 
@@ -615,7 +606,7 @@ for tt=1:num_step #number of time steps
          subplot(3,5,[1 13]); #plot the sphere and particles in 3D
         #--------------------------------------------------------------------------
         # % Plot the surface
-        [xs,ys,zs]=ellipsoid(0,0,0,max(Vertex[:,1]),max(Vertex[:,2]),max(Vertex[:,3]),30);
+        [xs,ys,zs]=ellipsoid(0,0,0,maximum(Vertex[:,1]),maximum(Vertex[:,2]),maximum(Vertex[:,3]),30);
         ss=1;
         h1=surf(xs,ys,zs);
         grid off
