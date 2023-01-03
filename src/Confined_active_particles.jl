@@ -11,6 +11,13 @@ using GeometryBasics  # great package
 using Statistics
 
 
+GLMakie.activate!()
+GLMakie.set_window_config!(
+    framerate = 10,
+    title = "Confined active particles"
+)
+
+
 """
     find_nonzero_index(c::Array)
 
@@ -45,6 +52,19 @@ end
 
 
 ##############################################################
+# Define perpendicular projection functions, adapted from "PhysRevE 91 022306"
+##############################################################
+
+# P_perp does a normal projection of the vector b on the plane normal to a
+P_perp(a, b) = (b-(sum(b.*a,dims=2)./(sqrt.(sum(a.^2,dims=2)).^2)*ones(1,3)).*a)
+
+# P_plan does a projection of the vector b on vector normal to a1 in the plane normal to a
+P_plan(a,b,a1) = ((sum(b.*a,dims=2)./(sqrt.(sum(a.^2,dims=2)))*ones(1,3)).*[
+    a[:,2].*a1[:,3]-a[:,3].*a1[:,2],-a[:,1].*a1[:,3]+a[:,3].*a1[:,1],a[:,1].*a1[:,2]-a[:,2].*a1[:,1]
+    ])
+
+
+##############################################################
 
 UpFolder = pwd();
 
@@ -64,7 +84,6 @@ Vertex = vertices
 Faces = faces
 
 
-# ##
 ##############################################################
 # When we plot surfaces, we are interested only in some part of the
 # geometry, so we select the faces which have at least one vertex in the
@@ -199,20 +218,6 @@ end
 
 
 ##############################################################
-# Define perpendicular projection functions, adapted from "PhysRevE 91 022306"
-##############################################################
-
-P_perp(a, b) = (b-(sum(b.*a,dims=2)./(sqrt(sum(a.^2,dims=2)).^2)*ones(1,3)).*a)
-# % % P_perp does a normal projection of the vector b on the plane normal to a
-# % % , the output c is a 2d array, num_part x 3
-P_plan(a,b,a1) = ((sum(b.*a,dims=2)./(sqrt(sum(a.^2,dims=2)))*ones(1,3)).*[
-    a[:,2].*a1[:,3]-a[:,3].*a1[:,2],-a[:,1].*a1[:,3]+a[:,3].*a1[:,1],a[:,1].*a1[:,2]-a[:,2].*a1[:,1]
-    ])
-# % % P_plan does a projection of the vector b on vector normal to a1 in
-# % %the plane normal to a, the output c is a 2d array, num_part x 3
-
-
-##############################################################
 # % Begin - Initialize particles with random initial orientation
 ##############################################################
 
@@ -310,33 +315,31 @@ for i=1:num_part
     end
 end
 
-
-
-
-
-
 # % find faces closer to each points and associated normal vector
 # %%%%%%%%%%%%
 
 # %Project the orientation of the corresponding faces using normal vectors
 n = P_perp(Norm_vect,n)
-n = n./(sqrt.(sum(n.^2,2))*ones(1,3)) # And normalise orientation vector
-particle_info[Symbol("t",0)] = [r,n]
+n = n./(sqrt.(sum(n.^2,dims=2))*ones(1,3)) # And normalise orientation vector
+
+# particle_info[Symbol("t",0)] = [r,n]
 #particle_info = setfield(particle_info,num2str(0),[r,n]);
 
-# %%%%%%%%%%%%%%%%%
-# % End - Initialize particles with random initial orientation
-# %%%%%%%%%%%%%%%%%%
+##############################################################
+# End - Initialize particles with random initial orientation
+##############################################################
 
-# %%
-# % Initialize graphical output
-if movie_making == 1
-    movie_file = fullfile(UpFolder,"movies","test.mp4")
-    writerObj = VideoWriter(movie_file,"MPEG-4") # Open the video writer object
-    writerObj.FrameRate = fps
-    writerObj.Quality = 100
-    open(writerObj)
-end
+
+
+# # %%
+# # % Initialize graphical output
+# if movie_making == 1
+#     movie_file = fullfile(UpFolder,"movies","test.mp4")
+#     writerObj = VideoWriter(movie_file,"MPEG-4")  # TODO: Open the video writer object
+#     writerObj.FrameRate = fps
+#     writerObj.Quality = 100
+#     open(writerObj)
+# end
 
 
 # %%
@@ -344,7 +347,7 @@ end
 # % force, displacement and reorientation for all particles. In the second
 # % part, for each particle project them on closest face. In the third part,
 # % we sometimes plot the position and orientation of the cells
-
+tt=1  # TODO: remove this line
 for tt=1:num_step #number of time steps
     r_modified = [];
     # if loop to change forces and velocity after some time because in
@@ -353,104 +356,118 @@ for tt=1:num_step #number of time steps
     if tt > 500
         v0 = v0_next;
         k = k_next;
-#     elseif tt==500 && v0<0.1
-#         n = -1+2*rand(num_part,3);
-#         n = P_perp(Norm_vect,n);
-#         n = n./(sqrt(sum(n.^2,2))*ones(1,3)) # And normalise orientation vector
     end
 
-    # %%%%%%%%%%%%%%
-    # % Part 1 of for loop
-    # %%%%%%%%%%%%%%
+    ##############################################################
+    # Part 1 of for loop
+    ##############################################################
     
     # % Vector between all particles (1->2; 1->3; 1->4;... 641->1; 641->2;
     # % 641->3; 641->4;...641->640...)
-    Vect = cat(3,...
-        r[:,1]*ones(1,num_part)-ones(num_part,1)*r[:,1]',...
-        r[:,2]*ones(1,num_part)-ones(num_part,1)*r[:,2]',...
-        r[:,3]*ones(1,num_part)-ones(num_part,1)*r[:,3]'...
-        );
     # % Vect is a 3D matrix for vector between particles, e.g. below
     # % Vect(1,2,1) = r(1,1) - r(2,1)
     # % Vect(1,2,2) = r(1,2) - r(2,2)
     # % Vect(1,2,3) = r(1,3) - r(2,3)
-    cross_Nij = cat(3,...
-        (n[:,2]*ones(1,num_part)).*(ones(num_part,1)*n[:,3]')-...
-        (n[:,3]*ones(1,num_part)).*(ones(num_part,1)*n[:,2]'),...
-        -(n[:,1]*ones(1,num_part)).*(ones(num_part,1)*n[:,3]')+...
-        (n[:,3]*ones(1,num_part)).*(ones(num_part,1)*n[:,1]'),...
-        (n[:,1]*ones(1,num_part)).*(ones(num_part,1)*n[:,2]')-...
-        (n[:,2]*ones(1,num_part)).*(ones(num_part,1)*n[:,1]'));
+    Vect = cat(dims=3,
+        r[:,1]*ones(1,num_part)-ones(num_part,1)*r[:,1]',
+        r[:,2]*ones(1,num_part)-ones(num_part,1)*r[:,2]',
+        r[:,3]*ones(1,num_part)-ones(num_part,1)*r[:,3]'
+        )
+
     # % cross_Nij is the cross product between orientation vectors
     # % cross_Nij(1,2,1) = n(1,2)*n(2,3)-(n(1,3)*n(2,2))
     # % cross_Nij(1,2,2) = -(n(1,1)*n(2,3))+n(1,3)*n(2,1)
     # % cross_Nij(1,2,3) = n(1,1)*n(2,2)-(n(1,2)*n(2,1))
+    cross_Nij = cat(dims=3,
+        (n[:,2]*ones(1,num_part)).*(ones(num_part,1)*n[:,3]')-
+        (n[:,3]*ones(1,num_part)).*(ones(num_part,1)*n[:,2]'),
+        -(n[:,1]*ones(1,num_part)).*(ones(num_part,1)*n[:,3]')+
+        (n[:,3]*ones(1,num_part)).*(ones(num_part,1)*n[:,1]'),
+        (n[:,1]*ones(1,num_part)).*(ones(num_part,1)*n[:,2]')-
+        (n[:,2]*ones(1,num_part)).*(ones(num_part,1)*n[:,1]')
+        )
 
-    Distmat=sqrt.(sum(Vect.^2,3)); %distance of each point with the others
+    Distmat = sqrt.(sum(Vect.^2,dims=3))[:,:,1]  # distance of each point with the others
     
-    Fij_rep = (-k*(2*sigma_n-Distmat))./(2*sigma_n);
-    Fij_rep((Distmat >= 2*sigma_n) | (Distmat == 0))= 0; % No force if
-    # % particles too far from each other or if particle itself
-    
-    Fij_adh = (k_adh*(2*sigma_n-Distmat))./(2*sigma_n-r_adh);
-    Fij_adh((Distmat < 2*sigma_n) | (Distmat > r_adh) | (Distmat == 0))= 0; % No force if
-    # % particles too far from each other or if particle itself
-    
-    Fij = Fij_rep+Fij_adh;
-    Fij = cat(3,Fij,Fij,Fij).*(Vect./(cat(3,Distmat,Distmat,Distmat)));
-    # % Fij is the force between particles
-    # % Fij(1,2,1) = -k(2sigma_n - norm(r(2,:)-r(1,:))) * (r(1,1)-r(2,1)) / norm(r(2,:)-r(1,:))
-    # % Fij(1,2,2) = -k(2sigma_n - norm(r(2,:)-r(1,:))) * (r(2,2)-r(2,2)) / norm(r(2,:)-r(1,:))
-    # % Fij(1,2,3) = -k(2sigma_n - norm(r(2,:)-r(1,:))) * (r(2,3)-r(2,3)) / norm(r(2,:)-r(1,:))
-    # % if 0 < norm(r(2,:)-r(1,:)) < 2*sigma_n
+    Fij_rep = (-k*(2*sigma_n.-Distmat))./(2*sigma_n)
+    Fij_adh = (k_adh*(2*sigma_n.-Distmat))./(2*sigma_n-r_adh)
+
+    # No force if particles too far from each other or if particle itself
+    Fij_rep[(Distmat .>= 2*sigma_n) .| (Distmat .== 0)] .= 0 
+    Fij_adh[(Distmat .< 2*sigma_n) .| (Distmat .> r_adh) .| (Distmat .== 0)] .= 0
+
+    # Fij is the force between particles
+    # Fij(1,2,1) = -k(2sigma_n - norm(r(2,:)-r(1,:))) * (r(1,1)-r(2,1)) / norm(r(2,:)-r(1,:))
+    # Fij(1,2,2) = -k(2sigma_n - norm(r(2,:)-r(1,:))) * (r(2,2)-r(2,2)) / norm(r(2,:)-r(1,:))
+    # Fij(1,2,3) = -k(2sigma_n - norm(r(2,:)-r(1,:))) * (r(2,3)-r(2,3)) / norm(r(2,:)-r(1,:))
+    # if 0 < norm(r(2,:)-r(1,:)) < 2*sigma_n
+    Fij = Fij_rep .+ Fij_adh
+    Fij = cat(dims=3,Fij,Fij,Fij).*(Vect./(cat(dims=3,Distmat,Distmat,Distmat)))
     
     # % Actual force felt by each particle
-    F_track = reshape(nansum(Fij,1),[],size(Fij,3));
+    F_track = reshape(sum(replace!(Fij, NaN=>0), dims=1),: ,size(Fij,3)) 
     # % Velocity of each particle
-    r_dot = P_perp(Norm_vect,v0*n+mu*reshape(nansum(Fij,1),[],size(Fij,3)));
-    
+    r_dot = P_perp(Norm_vect,v0.*n+mu.*F_track)
+
     r_dotTest = 0;
-    r_prev = r; % save current position
-    n_prev = n; % save current orientation
-    r = r+r_dot*dt; % calculate next position
+    r_prev = r;  #% save current position
+    n_prev = n;  #% save current orientation
+    r = r+r_dot*dt; # % calculate next position
 
-    # %%%%%%%%%%%%%%%%%%%%%
-    # % Visceck-type n correction adapted from "Phys. Rev. E 74, 061908"
-    # %%%%%%%%%%%%%%%%%%%%%%
-    ncross = cat(2,n[:,2].*r_dot[:,3]-n[:,3].*r_dot[:,2],...
-        -(n[:,1].*r_dot[:,3]-n[:,3].*r_dot[:,1]),...
-        n[:,1].*r_dot[:,2]-n[:,2].*r_dot[:,1])./(sqrt.(sum(r_dot.^2,2))*ones(1,3));
-    n_cross_correction = (1/tau)*ncross*dt;
-    new_n = n-cat(2,n[:,2].*n_cross_correction[:,3]-n[:,3].*n_cross_correction[:,2],...
-        -(n[:,1].*n_cross_correction[:,3]-n[:,3].*n_cross_correction[:,1]),...
-        n[:,1].*n_cross_correction[:,2]-n[:,2].*n_cross_correction[:,1]); #n+cross(n_cross_correction,n)
-    n = new_n./(sqrt.(sum(new_n.^2,2))*ones(1,3));
-    # %%%%%%%%%%%%%%%%%%%%%
-    # % End Visceck-type n correction
-    # %%%%%%%%%%%%%%%%%%%%%%
 
-    #%%%%%%%%%%%%%%%%%%%%
-    #     % Part 2 of for loop%
-    #%%%%%%%%%%%%%%%%%%%%
+    ##############################################################
+    # Visceck-type n correction adapted from "Phys. Rev. E 74, 061908"
+    ##############################################################
+
+    ncross = cat(dims=2,n[:,2].*r_dot[:,3]-n[:,3].*r_dot[:,2],
+        -(n[:,1].*r_dot[:,3]-n[:,3].*r_dot[:,1]),
+        n[:,1].*r_dot[:,2]-n[:,2].*r_dot[:,1]) ./
+        (sqrt.(sum(r_dot.^2,dims=2))*ones(1,3))
+
+    n_cross_correction = (1/tau)*ncross*dt
+
+    new_n = n-cat(dims=2,n[:,2].*n_cross_correction[:,3]-n[:,3].*n_cross_correction[:,2],
+        -(n[:,1].*n_cross_correction[:,3]-n[:,3].*n_cross_correction[:,1]),
+        n[:,1].*n_cross_correction[:,2]-n[:,2].*n_cross_correction[:,1])
+
+    n = new_n./(sqrt.(sum(new_n.^2,dims=2))*ones(1,3))
+
+    ##############################################################
+    # End Visceck-type n correction
+    ##############################################################
 
     Norm_vect = ones(num_part,3);
+    i = 1  # TODO: remove it when the loop is working
     for i = 1:length(r[:,1])
         # Search for faces around the particle before displacement in wich the
         # cell could migrate. Only face with at least one vertex within the
         # zone defined by the particle at its center and of radius r_dot*dt are
         # candidates for projection
         radius_search = sqrt.(sum(r_dot[i,:].^2))*dt
-        number_faces = num_face[i,isnan(num_face[i,:]) == 0]
+
+        number_faces = replace!(num_face[i,:], NaN=>0)'
+        number_faces = number_faces[number_faces .!= 0]
+
         if length(number_faces) == 1
             Faces_numbers1 = F_neighbourg[number_faces,:]
             #Faces_numbers1 = Faces_numbers1[isnan(Faces_numbers1) == 0]
-            full_number_faces = Faces_numbers1[isnan(Faces_numbers1) == 0]
+            full_number_faces = Faces_numbers1[replace!(Faces_numbers1, NaN=>0)]
+            # full_number_faces = Faces_numbers1[isnan(Faces_numbers1) == 0]  # NOTE: I replaced it without checking
         else
             full_number_faces = number_faces
+            num_face_i = 1  # TODO: remove it when the loop is working
             for num_face_i = 1:length(number_faces)
-                Faces_numbers1 = F_neighbourg[number_faces[num_face_i],:]
+                Faces_numbers1 = F_neighbourg[Int(number_faces[num_face_i]),:]
+        
+
+                # TODO: end of day 3 JAN 2023
+
+
+
+
+                Faces_numbers1 = Faces_numbers1[replace!(Faces_numbers1, NaN=>0)]
                 Faces_numbers1 = Faces_numbers1[isnan(Faces_numbers1) == 0]
-                full_number_faces = cat(2,full_number_faces,Faces_numbers1)
+                full_number_faces = cat(dims=2,full_number_faces,Faces_numbers1)
              end
         end
         full_number_faces = unique(full_number_faces)
@@ -542,7 +559,7 @@ for tt=1:num_step #number of time steps
     t=(tt-1)*dt;
     
     # %particle_info.num2str(tt) = [r,n];
-    particle_info.(['t',num2str(tt)]) = [r,n];
+    # particle_info.(['t',num2str(tt)]) = [r,n];
 
     # %%%%%%%%%%%%%%%%%%%%%
     # % Part 3 of for loop%
