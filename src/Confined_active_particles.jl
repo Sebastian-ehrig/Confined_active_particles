@@ -19,6 +19,136 @@ GLMakie.set_window_config!(
 )
 
 
+UpFolder = pwd();
+
+# import an STL mesh, returning a PATCH-compatible face-vertex structure
+namestructure = "ellipsoid_x4"
+mesh_loaded = FileIO.load("assets/ellipsoid_x4.stl")
+
+##############################################################
+
+
+# TODO: implement this: https://docs.makie.org/v0.19.1/documentation/nodes/index.html#the_observable_structure
+# TODO
+"""
+    simulate_on_mesh(mesh_surf, form_particle, n_particle)
+
+The goal is to create a package where I can overgive a mesh surface and the particle form and then simply simulate the particle behaviour on the mesh surface.
+"""
+function simulate_on_mesh(mesh_surf, form_particle, n_particle)
+
+end
+
+
+# TODO: implement this correctly
+# # # % Plot the particles
+# using GLMakie, Random
+# GLMakie.activate!()
+# num_part = 200
+# initms = 8 * rand(num_part)
+# particles = Makie.Observable(initms) # this is the variable that will change
+# # first frame, initial plot
+# fig, ax = scatter(2 * rand(num_part), rand(num_part), markersize = particles,
+#     color = initms, colormap = (:Greek, 0.75), strokewidth = 0.5,
+#     strokecolor = :white,
+#     figure = (resolution = (1200, 800), fontsize = 22),
+#     axis = (xlabel = "x", ylabel = "y",))
+# limits!(ax, 0, 2, 0, 1)
+# # the animation is done by updating the Observable values
+# record(fig, joinpath("assets", "confined_active_particles.mp4"),
+#     framerate = 24, profile = "main") do io
+#     for i in 1:0.1:8
+#         particles[] = i * initms
+#         recordframe!(io)  # record a new frame
+#     end
+# end
+
+
+"""
+    clip11(x)
+
+"""
+function clip11(x)
+    if x < -1
+        return -1
+    elseif x > 1
+        return 1
+    else
+        return x
+    end
+end
+
+
+function repel(particles_node, N)
+    particles = particles_node[]
+    @inbounds for i in 1:N
+        ftot = Vec3f0(0)
+        p1 = particles[i]
+        for j in 1:N
+            if i != j
+                p2 = particles[j]
+                Δσ = acos(clip11(dot(p1, p2))) # great circle distance
+                ftot += (p1 - p2)/max(1e-3, Δσ^2)
+            end
+        end
+        particles[i] = normalize(p1 + 0.001 * ftot)
+    end
+    particles_node[] = particles
+end
+
+
+function addparticle!(particles, colors, nparticles)
+    # ! You change the value of an Observable with empy index notation:
+    nparticles[] = nparticles[] + 1
+    particles[][nparticles[]] = normalize(randn(Point3f0))
+    colors[][nparticles[]] = to_color(:green)
+    particles[] = particles[]
+    colors[] = colors[]
+end
+
+scene = Makie.Scene(resolution = (400,400), show_axis = false);
+mesh!(scene, Sphere(Point3f0(0), 1f0), color = :gray)
+
+#f, ax, pl = Makie.mesh(mesh_loaded, axis=(type=Axis3,))  # plot the mesh
+
+max_particles = 5000
+# An `Observable` is a mutable container of an object of type `T`.
+# `T` can be any type.
+particles = Makie.Observable(fill(Point3f0(NaN), max_particles))
+colors = Makie.Observable(fill(RGBAf(0, 0, 0, 0), max_particles))
+meshscatter!(scene, particles, color = colors, markersize = 0.05)
+nparticles = Makie.Observable(0)
+for i=1:10
+    addparticle!(particles, colors, nparticles)
+end
+update_cam!(scene, FRect3D(Vec3f0(0), Vec3f0(1)))
+# scene.center = false # don't reset the camera by display
+N = 1000
+record(scene, "assets/output.mp4", 1:N) do iter
+    isodd(iter) && addparticle!(particles, colors, nparticles)
+    repel(particles, nparticles[])
+end
+
+
+
+
+
+
+
+"""
+    calculate_order_parameter(v_order, tt, v_tp)
+
+"""
+function calculate_order_parameter(v_order, tt, v_tp)
+    for i=1:n
+        v_norm[i,:]=v_tp[i,:]/norm(v_tp[i,:])
+    end
+    v_order[tt]=(1/n)*norm(sum(v_norm))
+
+    return v_order
+end
+
+
 """
     find_nonzero_index(c::Array)
 
@@ -49,7 +179,7 @@ end
 transform vector of vectors to matrix
 """
 function vec_of_vec_to_array(V)
-    reduce(vcat,transpose.(V))  
+    reduce(vcat,transpose.(V))
 end
 
 
@@ -105,15 +235,18 @@ P_plan(a,b,a1) = ((sum(b.*a,dims=2)./(sqrt.(sum(a.^2,dims=2)))*ones(1,3)).*[
 
 
 ##############################################################
+# PLOTTING DONE BY MAKIE.jl
+##############################################################
 
-UpFolder = pwd();
+scene = Makie.Scene(resolution = (400,400));
+f, ax, pl = Makie.mesh(mesh_loaded, axis=(type=Axis3,))  # plot the mesh
+wireframe!(ax, mesh_loaded, color=(:black, 0.2), linewidth=2, transparency=true)  # only for the asthetic
 
-# import an STL mesh, returning a PATCH-compatible face-vertex structure
-namestructure = "ellipsoid_x4"
 
-# [Faces,Vertex,N] = stlread(fullfile(UpFolder,"meshes",[namestructure,".stl"]));
+##############################################################
+# Get the data from the mesh
+##############################################################
 
-mesh_loaded = FileIO.load("assets/ellipsoid_x4.stl")
 N = mesh_loaded.normals
 # faces = GeometryBasics.decompose(TriangleFace{Int}, mesh_loaded)  # return the faces of the mesh
 vertices = GeometryBasics.coordinates(mesh_loaded)  # return the vertices of the mesh
@@ -646,6 +779,10 @@ for tt=1:num_step #number of time steps
 #         set (h1,'EdgeColor',[0.75,0.75,0.75],'FaceColor',[0.95,0.95,0.75],'MeshStyle','row');
 #                 alpha(0.7);
 #            camzoom(1.6);
+        
+
+#         # % Plot the particles    msize = Observable(initms) # this is the variable that will change
+            # first frame, initial plot
 
 #         # %Definition of contourplot to show particle density
 #         F = TriScatteredInterp(thet1,phi1,number_neighbours);
