@@ -9,6 +9,7 @@ using FileIO  # good package
 using Meshes
 using GeometryBasics  # great package
 using Statistics
+using LinearAlgebra
 
 
 GLMakie.activate!()
@@ -44,10 +45,49 @@ end
 
 """
     vec_of_vec_to_array(V::Array{Float32, 2})
+
 transform vector of vectors to matrix
 """
 function vec_of_vec_to_array(V)
     reduce(vcat,transpose.(V))  
+end
+
+
+# NOTE: maybe this is not correct
+"""
+    get_index_binary(Dist2faces::Array)
+
+Faces with closest point to r(i,:) and associated normal vectors
+"""
+function get_index_binary(_Dist2faces::Array)
+    return first.(Tuple.(sum(findall(x->x==minimum(_Dist2faces), _Dist2faces), dims=2)))
+end
+
+
+"""
+    get_particle(_face_coord_temp::Array)
+
+"""
+function get_particle(_face_coord_temp::Array)
+    particle = cat(dims=2,ones(size(_face_coord_temp[:,1,3]))*r[i,1],
+        ones(size(_face_coord_temp[:,1,3]))*r[i,2],
+        ones(size(_face_coord_temp[:,1,3]))*r[i,3]
+        )
+    return particle
+end
+
+
+"""
+    get_particle_position(_face_coord_temp::Array)
+
+"""
+function get_particle_position(_face_coord_temp::Array)
+    particle = get_particle(_face_coord_temp)
+    len_face_coord = length(_face_coord_temp[:,1,1])
+    reshape_it = reshape(_face_coord_temp[:,1,:],len_face_coord,3)
+    placeholder = sum((particle-reshape_it).*N_temp,dims=2)
+    p0s = particle - cat(placeholder, placeholder, placeholder, dims=2).*N_temp
+    return p0s
 end
 
 
@@ -257,18 +297,11 @@ for i=1:num_part
     Dist2faces = sqrt.(sum(face_coord_temp.^2,dims=3)[:,:,1])
 
     # Faces with closest point to r[i,:] and associated normal vectors
-    index_binary = first.(Tuple.(sum(findall(x->x==minimum(Dist2faces), Dist2faces), dims=2)))   # NOTE: maybe this is not correct
+    index_binary = get_index_binary(Dist2faces)
     face_coord_temp = Faces_coord[index_binary,:,:]
     N_temp = N[index_binary,:] |> vec_of_vec_to_array  # transform the vec of vec into array
 
-    particle = cat(dims=2,ones(size(face_coord_temp[:,1,3]))*r[i,1],
-        ones(size(face_coord_temp[:,1,3]))*r[i,2],
-        ones(size(face_coord_temp[:,1,3]))*r[i,3])
-
-    len_face_coord = length(face_coord_temp[:,1,1])
-    reshape_it = reshape(face_coord_temp[:,1,:],len_face_coord,3)
-    placeholder = sum((particle-reshape_it).*N_temp,dims=2)
-    p0s = particle - cat(placeholder, placeholder, placeholder, dims=2).*N_temp
+    p0s = get_particle_position(face_coord_temp)
 
     # Check what face in which the projection is
     p1p2 = reshape(face_coord_temp[:,2,:]-face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
@@ -437,7 +470,6 @@ for tt=1:num_step #number of time steps
     ##############################################################
 
     Norm_vect = ones(num_part,3);
-    i = 1  # TODO: remove it when the loop is working
     for i = 1:length(r[:,1])
         # Search for faces around the particle before displacement in wich the
         # cell could migrate. Only face with at least one vertex within the
@@ -446,6 +478,7 @@ for tt=1:num_step #number of time steps
         radius_search = sqrt.(sum(r_dot[i,:].^2))*dt
 
         number_faces = replace!(num_face[i,:], NaN=>0)'
+        number_faces = Int.(number_faces)
         number_faces = number_faces[number_faces .!= 0]
 
         if length(number_faces) == 1
@@ -454,99 +487,82 @@ for tt=1:num_step #number of time steps
             full_number_faces = Faces_numbers1[replace!(Faces_numbers1, NaN=>0)]
             # full_number_faces = Faces_numbers1[isnan(Faces_numbers1) == 0]  # NOTE: I replaced it without checking
         else
-            full_number_faces = number_faces
-            num_face_i = 1  # TODO: remove it when the loop is working
+            full_number_faces = number_faces'
+            num_face_i = 1
             for num_face_i = 1:length(number_faces)
-                Faces_numbers1 = F_neighbourg[Int(number_faces[num_face_i]),:]
-        
-
-                # TODO: end of day 3 JAN 2023
-
-
-
-
-                Faces_numbers1 = Faces_numbers1[replace!(Faces_numbers1, NaN=>0)]
-                Faces_numbers1 = Faces_numbers1[isnan(Faces_numbers1) == 0]
+                Faces_numbers1 = F_neighbourg[Int(number_faces[num_face_i]),:]'
+                Faces_numbers1 = replace!(Faces_numbers1, NaN=>0)
+                Faces_numbers1 = Int.(Faces_numbers1)
+                Faces_numbers1 = Faces_numbers1[Faces_numbers1 .!= 0]'  # remove the 0 values
                 full_number_faces = cat(dims=2,full_number_faces,Faces_numbers1)
              end
         end
         full_number_faces = unique(full_number_faces)
-        Faces_coord_temp = Faces_coord(full_number_faces,:,:)
-        NV = N(full_number_faces,:)
+
+        # Faces coordinates
+        Faces_coord_temp = Faces_coord[full_number_faces,:,:]
+        # % Normal vectors of faces
+        NV = N[full_number_faces,:] |> vec_of_vec_to_array
         # % Vector of particle to faces
-        face_coord_temp = Faces_coord_temp - cat(3,ones(size(Faces_coord_temp[:,:,3]))*...
-            r[i,1],ones(size(Faces_coord_temp[:,:,3]))*...
-            r[i,2],ones(size(Faces_coord_temp[:,:,3]))*...
-            r[i,3])
+        face_coord_temp = Faces_coord_temp .- cat(dims=3,ones(size(Faces_coord_temp[:,:,3]))*r[i,1],
+            ones(size(Faces_coord_temp[:,:,3]))*r[i,2],
+            ones(size(Faces_coord_temp[:,:,3]))*r[i,3])
+
         # % Distance of particle to faces
-        Dist2faces = sqrt.(sum(face_coord_temp.^2,3))
+        Dist2faces = sqrt.(sum(face_coord_temp.^2,dims=3))[:,:,1]
+
+        # TODO: this could all maybe be a function or class
         # % Faces with closest point to r(i,:) and associated normal vectors
-        index_binary = find(sum(Dist2faces == minimum(minimum(Dist2faces)),2) > 0)
+        index_binary = get_index_binary(Dist2faces)
         face_coord_temp = Faces_coord_temp[index_binary,:,:]
         N_temp = NV[index_binary,:]
 
-        particle = cat(2,ones(size(face_coord_temp[:,1,3]))*...
-            r[i,1],ones(size(face_coord_temp[:,1,3]))*...
-            r[i,2],ones(size(face_coord_temp[:,1,3]))*...
-            r[i,3])
-        p0s = particle - cat(2,sum((particle-reshape(face_coord_temp[:,1,:],
-            length(face_coord_temp[:,1,1]),3)).*N_temp,2),...
-            sum((particle-reshape(face_coord_temp[:,1,:],
-            length(face_coord_temp[:,1,1]),3)).*N_temp,2),...
-            sum((particle-reshape(face_coord_temp[:,1,:],
-            length(face_coord_temp[:,1,1]),3)).*N_temp,2)...
-            ).*N_temp
-        # Check what face in which the projection is
-        p1p2 = reshape(face_coord_temp[:,2,:]-face_coord_temp[:,1,:],
-            length(face_coord_temp[:,1,1]),3)
-        p1p3 = reshape(face_coord_temp[:,3,:]-face_coord_temp[:,1,:],
-            length(face_coord_temp[:,1,1]),3)
-        p1p3crossp1p2 = [p1p3[:,2].*p1p2[:,3]-p1p3[:,3].*p1p2[:,2],-p1p3[:,1].*...
-            p1p2[:,3]+p1p3[:,3].*p1p2[:,1],p1p3[:,1].*p1p2[:,2]-p1p3[:,2].*p1p2[:,1]]
-        p1p0 = p0s-reshape(face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),...
-            3)
-        p1p3crossp1p0 = [p1p3[:,2].*p1p0[:,3]-p1p3[:,3].*p1p0[:,2],...
-            -p1p3[:,1].*p1p0[:,3]+p1p3[:,3].*p1p0[:,1],...
-            p1p3[:,1].*p1p0[:,2]-p1p3[:,2].*p1p0[:,1]]
-        
-        p1p2crossp1p0 = [p1p2[:,2].*p1p0[:,3]-p1p2[:,3].*p1p0[:,2],...
-            -p1p2[:,1].*p1p0[:,3]+p1p2[:,3].*p1p0[:,1],...
-            p1p2[:,1].*p1p0[:,2]-p1p2[:,2].*p1p0[:,1]]
-        p1p2crossp1p3 = [p1p2[:,2].*p1p3[:,3]-p1p2[:,3].*p1p3[:,2],...
-            -p1p2[:,1].*p1p3[:,3]+p1p2[:,3].*p1p3[:,1],...
-            p1p2[:,1].*p1p3[:,2]-p1p2[:,2].*p1p3[:,1]] # 
+        p0s = get_particle_position(face_coord_temp)  # get the position of the particle on the face
 
-        # "index_face_in" are the row index(es) of face_coord_temp in which a
-        # % particle can be projected.
-        # "index_binary(index_face_in)" are the faces number(s) in which the
-        # particle can be projected
-        index_face_in = find((sum(p1p3crossp1p0.*p1p3crossp1p2,2)>=0) & (sum(p1p2crossp1p0.*p1p2crossp1p3,2)>=0)...
-            & ((sqrt.(sum(p1p3crossp1p0.^2,2))+sqrt.(sum(p1p2crossp1p0.^2,2)))./...
-            sqrt.(sum(p1p2crossp1p3.^2,2)) <= 1))
+        # Check what face in which the projection is
+        p1p2 = reshape(face_coord_temp[:,2,:]-face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
+        p1p3 = reshape(face_coord_temp[:,3,:]-face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
+        p1p0 = p0s-reshape(face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
+        p1p3crossp1p2 = [p1p3[:,2].*p1p2[:,3]-p1p3[:,3].*p1p2[:,2],-p1p3[:,1].*p1p2[:,3]+p1p3[:,3].*p1p2[:,1],p1p3[:,1].*p1p2[:,2]-p1p3[:,2].*p1p2[:,1]] |> vec_of_vec_to_array
+        p1p3crossp1p0 = [p1p3[:,2].*p1p0[:,3]-p1p3[:,3].*p1p0[:,2],-p1p3[:,1].*p1p0[:,3]+p1p3[:,3].*p1p0[:,1],p1p3[:,1].*p1p0[:,2]-p1p3[:,2].*p1p0[:,1]] |> vec_of_vec_to_array
+        p1p2crossp1p0 = [p1p2[:,2].*p1p0[:,3]-p1p2[:,3].*p1p0[:,2],-p1p2[:,1].*p1p0[:,3]+p1p2[:,3].*p1p0[:,1],p1p2[:,1].*p1p0[:,2]-p1p2[:,2].*p1p0[:,1]] |> vec_of_vec_to_array
+        p1p2crossp1p3 = [p1p2[:,2].*p1p3[:,3]-p1p2[:,3].*p1p3[:,2],-p1p2[:,1].*p1p3[:,3]+p1p2[:,3].*p1p3[:,1],p1p2[:,1].*p1p3[:,2]-p1p2[:,2].*p1p3[:,1]] |> vec_of_vec_to_array
+
+        len_p1p3crossp1p2 = length(p1p3crossp1p2[:,1])
+
         # "index_face_out" are the row index(es) of face_coord_temp in which a
-        # particle cannot be projected.
-        # "index_binary(index_face_in)" are the faces number(s) in which the
+        # particle cannot be projected. 
+        # "index_binary(index_face_in)" are the faces number(s) in which the 
         # particle cannot be projected
-        index_face_out = find((sum(p1p3crossp1p0.*p1p3crossp1p2,2)<0) | (sum(p1p2crossp1p0.*p1p2crossp1p3,2)<0)...
-            | ((sqrt.(sum(p1p3crossp1p0.^2,2))+sqrt.(sum(p1p2crossp1p0.^2,2)))./...
-            sqrt.(sum(p1p2crossp1p3.^2,2)) > 1))
+        index_face_out = (sum(p1p3crossp1p0.*p1p3crossp1p2,dims=2).<0) .|
+            (sum(p1p2crossp1p0.*p1p2crossp1p3,dims=2).<0) .|
+            ((sqrt.(sum(p1p3crossp1p0.^2,dims=2))+sqrt.(sum(p1p2crossp1p0.^2,dims=2)))./
+            sqrt.(sum(p1p2crossp1p3.^2,dims=2)) .> 1) |> Array |> findall 
+        index_face_out= first.(Tuple.(index_face_out))
+    
+        # % "index_face_in" are the row index(es) of face_coord_temp in which a
+        # % particle can be projected. 
+        # "index_binary(index_face_in)" are the faces number(s) in which the 
+        # particle can be projected
+        index_face_in = setdiff(index_face_out, reshape([1:len_p1p3crossp1p2;], :, 1))
 
         # % If the projections are in no face, take the average projection and
         # % normal vectors. Save the faces number used
         if isempty(index_face_in) == 1
-            Norm_vect[i,:] = mean(N_temp[index_face_out,:],1)
-            r[i,:] = mean(p0s[index_face_out,:],1)
+            Norm_vect[i,:] = mean(N_temp[index_face_out,:],dims=1)
+            r[i,:] = mean(p0s[index_face_out,:],dims=1)
             num_face[i,1:length(index_face_out)] = full_number_faces[index_binary[index_face_out]]'
-            # % If the projections are in a face, save its number, normal vector and
-            # % projected point
+
+        # % If the projections are in a face, save its number, normal vector and
+        # % projected point
         else
             if length(index_face_in) > 1
-                Norm_vect[i,:] = mean(N_temp[index_face_in,:],1)
-                r[i,:] = mean(p0s[index_face_in,:],1)
-                num_face[i,1:length(index_face_in)] = full_number_faces[index_binary[index_face_in]]'
+                Norm_vect[i,:] = mean(N_temp[index_face_in,:],dims=1)
+                r[i,:] = mean(p0s[index_face_in,:],dims=1)
+                num_face[i,1:length(index_face_in)] = full_number_faces[index_binary[index_face_in]]'  # TODO: this is empty
             else
                 Norm_vect[i,:] = N_temp[index_face_in,:]
-                num_face[i,1] = full_number_faces[index_binary[index_face_in]]
+                num_face[i,1] = full_number_faces[index_binary[index_face_in]]   # TODO: this is empty
                 r[i,:] = p0s[index_face_in,:]
             end
         end
@@ -554,105 +570,105 @@ for tt=1:num_step #number of time steps
 
     # % find faces closer to each points and associated normal vector
     # %%%%%%%%%%%%
-    n = P_perp(Norm_vect,n);
-    n = n./(sqrt.(sum(n.^2,2))*ones(1,3));
-    t=(tt-1)*dt;
-    
-    # %particle_info.num2str(tt) = [r,n];
-    # particle_info.(['t',num2str(tt)]) = [r,n];
+    # %Project the orientation of the corresponding faces using normal vectors
+    n = P_perp(Norm_vect,n)
+    n = n./(sqrt.(sum(n.^2,dims=2))*ones(1,3)) # And normalise orientation vector
 
-    # %%%%%%%%%%%%%%%%%%%%%
-    # % Part 3 of for loop%
-    # %%%%%%%%%%%%%%%%%%%%%  
-    
+    t=(tt-1)*dt;
+
+
+    ##############################################################
+    # Part 3 of for loop%
+    ##############################################################
+
     # %Graphic output
     if rem(tt,plotstep)==0
-        
-# %       normalize r_dot for visualization
+
+        # normalize r_dot for visualization
         nr_dot=[];
+
         for i=1:num_part
             nr_dot=[nr_dot; r_dot[i,:]/norm(r_dot[i,:])];
         end
         
         nr_dot_cross=[];
         for i=1:num_part
-            cross_Nrdot=cross(n[i,:],Norm_vect[i,:]);
-            nr_dot_cross=[nr_dot_cross; cross_Nrdot./norm(cross_Nrdot)];
+            cross_Nrdot=cross(n[i,:],Norm_vect[i,:])
+            nr_dot_cross=[nr_dot_cross; cross_Nrdot./norm(cross_Nrdot)]   # TODO: maybe check this again
         end
 
         # %evaluate number of neighbourgs within 2.4 sigma cut off
         num_partic = ones(size(Distmat));
-        num_partic((Distmat == 0)|(Distmat > 2.4*sigma_n)) = 0;
+        num_partic[(Distmat .== 0) .| (Distmat .> 2.4*sigma_n)] .= 0;
         # %list of nearest neighbour to each particle
-        number_neighbours=sum(num_partic,2);
+        number_neighbours=sum(num_partic,dims=2);
 
         # % specify colorvalue "c" according to neighbours for particles to plot
         N_color=[];
         for i=1:num_part
-        # %F_color=[F_color norm(sum(F_track(i,:)))];
-            N_color=[N_color number_neighbours(i,:)];
+            append!(N_color, Int.(number_neighbours[i,:]))
         end
+
         c=N_color;
-        # % Definition of the order parameter:
-        #-----------------------------------
+
+
+        ##############################################################
+        # Definition of the order parameter:
+        ##############################################################
+
         # Define a vector normal to position vector and velocity vector
-        v_tp=[r[:,2]*r_dot[:,3]-r[:,3]*r_dot[:,2],-r[:,1]*r_dot[:,3]+r[:,3]*r_dot[:,1],...
-            r[:,1]*r_dot[:,2]-r[:,2]*r_dot[:,1]];
+        v_tp=[r[:,2].*r_dot[:,3]-r[:,3].*r_dot[:,2],-r[:,1].*r_dot[:,3]+r[:,3].*r_dot[:,1],r[:,1].*r_dot[:,2]-r[:,2].*r_dot[:,1]];
+        v_tp = v_tp |> vec_of_vec_to_array |> transpose
         # Normalize v_tp
-        v_norm=v_tp./(sqrt.(sum(v_tp.^2,2))*ones(1,3));
+        v_norm=v_tp./(sqrt.(sum(v_tp.^2,dims=2))*ones(1,3));
         # Sum v_tp vectors and devide by number of particle to obtain order
         # parameter of collective motion for spheroids
-        v_order(tt/plotstep)=(1/num_part)*norm(sum(v_norm,1));
+        v_order[tt/plotstep]=(1/num_part)*norm(sum(v_norm,dims=1));
 
-        #Calculate angles for equirectangular map projection
-        phi1 = asin(r[:,3]/sqrt.(sum(r.^2,2)));   # elevation angle
-        thet1 = atan2(r[:,2],r[:,1]); # azimuth
+        # #Calculate angles for equirectangular map projection
+        # phi1 = asin(r[:,3]/sqrt.(sum(r.^2,dims=2)));   # elevation angle
+        # thet1 = atan2(r[:,2],r[:,1]); # azimuth
 
-        # %Draw figure
-        hFig = figure(1); 
-        if visible_off == 1
-            set(hFig, 'Visible', 'off');
-        end
+
         #custom colormap for the visualization of nearest neighbours (purple, red, blue, green, yellow)
-        cmap=[0.6, 0.0, 1.0; 1.0, 0.0, 0.0; 0.0, 0.0, 0.8; 0.0, 1.0, 0.0; 1.0, 1.0, 0.0];
+        # cmap=[0.6, 0.0, 1.0; 1.0, 0.0, 0.0; 0.0, 0.0, 0.8; 0.0, 1.0, 0.0; 1.0, 1.0, 0.0];
 
         #set figure settings
-        set(hFig, 'Position', [50 10 1280 720], 'color', [1 1 1],'Renderer','OpenGL')
-# %         set(hFig, 'Position', [50 50 1280 720], 'color', [1 1 1])
+#         set(hFig, 'Position', [50 10 1280 720], 'color', [1 1 1],'Renderer','OpenGL')
+# # %         set(hFig, 'Position', [50 50 1280 720], 'color', [1 1 1])
 
-         subplot(3,5,[1 13]); #plot the sphere and particles in 3D
-        #--------------------------------------------------------------------------
-        # % Plot the surface
-        [xs,ys,zs]=ellipsoid(0,0,0,maximum(Vertex[:,1]),maximum(Vertex[:,2]),maximum(Vertex[:,3]),30);
-        ss=1;
-        h1=surf(xs,ys,zs);
-        grid off
-        set (h1,'EdgeColor',[0.75,0.75,0.75],'FaceColor',[0.95,0.95,0.75],'MeshStyle','row');
-                alpha(0.7);
-           camzoom(1.6);
+#          subplot(3,5,[1 13]); #plot the sphere and particles in 3D
+#         #--------------------------------------------------------------------------
+#         # % Plot the surface
+#         [xs,ys,zs]=ellipsoid(0,0,0,maximum(Vertex[:,1]),maximum(Vertex[:,2]),maximum(Vertex[:,3]),30);
+#         ss=1;
+#         h1=surf(xs,ys,zs);
+#         set (h1,'EdgeColor',[0.75,0.75,0.75],'FaceColor',[0.95,0.95,0.75],'MeshStyle','row');
+#                 alpha(0.7);
+#            camzoom(1.6);
 
-        # %Definition of contourplot to show particle density
-        F = TriScatteredInterp(thet1,phi1,number_neighbours);
-        t_thet1= -pi:2*pi/100:pi;
-# %         t_phi1= -pi/2:pi/100:pi/2;
-        t_phi1= -1.45:pi/100:1.45;
-        [q_thet1,q_phi1]=meshgrid(t_thet1,t_phi1);
-        q_neighbour=F(q_thet1,q_phi1);
-        q_neighbour(q_neighbour==0)=nan;
+#         # %Definition of contourplot to show particle density
+#         F = TriScatteredInterp(thet1,phi1,number_neighbours);
+#         t_thet1= -pi:2*pi/100:pi;
+# # %         t_phi1= -pi/2:pi/100:pi/2;
+#         t_phi1= -1.45:pi/100:1.45;
+#         [q_thet1,q_phi1]=meshgrid(t_thet1,t_phi1);
+#         q_neighbour=F(q_thet1,q_phi1);
+#         q_neighbour(q_neighbour==0)=nan;
 
-        # %squared norm of each element in r_dot
-        ner_dot=[];
-        for i=1:num_part
-            ner_dot=[ner_dot; norm(r_dot(i,:))^2];
-        end
+#         # %squared norm of each element in r_dot
+#         ner_dot=[];
+#         for i=1:num_part
+#             ner_dot=[ner_dot; norm(r_dot(i,:))^2];
+#         end
 
-        # %total energy in the system
-        if 0.5*sum(ner_dot)<200
-            en_v(tt/plotstep)=0.5.*sum(ner_dot);
-        end
+#         # %total energy in the system
+#         if 0.5*sum(ner_dot)<200
+#             en_v(tt/plotstep)=0.5.*sum(ner_dot);
+#         end
 
-        x_en_v=0:(length(en_v)-1);
-        x_v_order=0:(length(v_order)-1);
+#         x_en_v=0:(length(en_v)-1);
+#         x_v_order=0:(length(v_order)-1);
     end
 end
 
