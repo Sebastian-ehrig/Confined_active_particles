@@ -65,10 +65,10 @@ end
 
 
 """
-    get_particle(_face_coord_temp::Array)
+    get_particle(_face_coord_temp::Array, i::Int)
 
 """
-function get_particle(_face_coord_temp::Array)
+function get_particle(_face_coord_temp::Array, i::Int)
     particle = cat(dims=2,ones(size(_face_coord_temp[:,1,3]))*r[i,1],
         ones(size(_face_coord_temp[:,1,3]))*r[i,2],
         ones(size(_face_coord_temp[:,1,3]))*r[i,3]
@@ -78,11 +78,11 @@ end
 
 
 """
-    get_particle_position(_face_coord_temp::Array)
+    get_particle_position(_face_coord_temp::Array, N_temp, i::Int)
 
 """
-function get_particle_position(_face_coord_temp::Array)
-    particle = get_particle(_face_coord_temp)
+function get_particle_position(_face_coord_temp::Array, N_temp, i::Int)
+    particle = get_particle(_face_coord_temp, i)
     len_face_coord = length(_face_coord_temp[:,1,1])
     reshape_it = reshape(_face_coord_temp[:,1,:],len_face_coord,3)
     placeholder = sum((particle-reshape_it).*N_temp,dims=2)
@@ -301,7 +301,7 @@ for i=1:num_part
     face_coord_temp = Faces_coord[index_binary,:,:]
     N_temp = N[index_binary,:] |> vec_of_vec_to_array  # transform the vec of vec into array
 
-    p0s = get_particle_position(face_coord_temp)
+    p0s = get_particle_position(face_coord_temp, N_temp, i)
 
     # Check what face in which the projection is
     p1p2 = reshape(face_coord_temp[:,2,:]-face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
@@ -517,7 +517,7 @@ for tt=1:num_step #number of time steps
         face_coord_temp = Faces_coord_temp[index_binary,:,:]
         N_temp = NV[index_binary,:]
 
-        p0s = get_particle_position(face_coord_temp)  # get the position of the particle on the face
+        p0s = get_particle_position(face_coord_temp, N_temp, i)  # get the position of the particle on the face
 
         # Check what face in which the projection is
         p1p2 = reshape(face_coord_temp[:,2,:]-face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
