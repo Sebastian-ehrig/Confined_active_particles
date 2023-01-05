@@ -64,70 +64,70 @@ end
 # end
 
 
-"""
-    clip11(x)
+# """
+#     clip11(x)
 
-"""
-function clip11(x)
-    if x < -1
-        return -1
-    elseif x > 1
-        return 1
-    else
-        return x
-    end
-end
-
-
-function repel(particles_node, N)
-    particles = particles_node[]
-    @inbounds for i in 1:N
-        ftot = Vec3f0(0)
-        p1 = particles[i]
-        for j in 1:N
-            if i != j
-                p2 = particles[j]
-                Δσ = acos(clip11(dot(p1, p2))) # great circle distance
-                ftot += (p1 - p2)/max(1e-3, Δσ^2)
-            end
-        end
-        particles[i] = normalize(p1 + 0.001 * ftot)
-    end
-    particles_node[] = particles
-end
+# """
+# function clip11(x)
+#     if x < -1
+#         return -1
+#     elseif x > 1
+#         return 1
+#     else
+#         return x
+#     end
+# end
 
 
-function addparticle!(particles, colors, nparticles)
-    # ! You change the value of an Observable with empy index notation:
-    nparticles[] = nparticles[] + 1
-    particles[][nparticles[]] = normalize(randn(Point3f0))
-    colors[][nparticles[]] = to_color(:green)
-    particles[] = particles[]
-    colors[] = colors[]
-end
+# function repel(particles_node, N)
+#     particles = particles_node[]
+#     @inbounds for i in 1:N
+#         ftot = Vec3f0(0)
+#         p1 = particles[i]
+#         for j in 1:N
+#             if i != j
+#                 p2 = particles[j]
+#                 Δσ = acos(clip11(dot(p1, p2))) # great circle distance
+#                 ftot += (p1 - p2)/max(1e-3, Δσ^2)
+#             end
+#         end
+#         particles[i] = normalize(p1 + 0.001 * ftot)
+#     end
+#     particles_node[] = particles
+# end
 
-scene = Makie.Scene(resolution = (400,400), show_axis = false);
-mesh!(scene, Sphere(Point3f0(0), 1f0), color = :gray)
 
-#f, ax, pl = Makie.mesh(mesh_loaded, axis=(type=Axis3,))  # plot the mesh
+# function addparticle!(particles, colors, nparticles)
+#     # ! You change the value of an Observable with empy index notation:
+#     nparticles[] = nparticles[] + 1
+#     particles[][nparticles[]] = normalize(randn(Point3f0))
+#     colors[][nparticles[]] = to_color(:green)
+#     particles[] = particles[]
+#     colors[] = colors[]
+# end
 
-max_particles = 5000
-# An `Observable` is a mutable container of an object of type `T`.
-# `T` can be any type.
-particles = Makie.Observable(fill(Point3f0(NaN), max_particles))
-colors = Makie.Observable(fill(RGBAf(0, 0, 0, 0), max_particles))
-meshscatter!(scene, particles, color = colors, markersize = 0.05)
-nparticles = Makie.Observable(0)
-for i=1:10
-    addparticle!(particles, colors, nparticles)
-end
-update_cam!(scene, FRect3D(Vec3f0(0), Vec3f0(1)))
-# scene.center = false # don't reset the camera by display
-N = 1000
-record(scene, "assets/output.mp4", 1:N) do iter
-    isodd(iter) && addparticle!(particles, colors, nparticles)
-    repel(particles, nparticles[])
-end
+# scene = Makie.Scene(resolution = (400,400), show_axis = false);
+# mesh!(scene, Sphere(Point3f0(0), 1f0), color = :gray)
+
+# #f, ax, pl = Makie.mesh(mesh_loaded, axis=(type=Axis3,))  # plot the mesh
+
+# max_particles = 5000
+# # An `Observable` is a mutable container of an object of type `T`.
+# # `T` can be any type.
+# particles = Makie.Observable(fill(Point3f0(NaN), max_particles))
+# colors = Makie.Observable(fill(RGBAf(0, 0, 0, 0), max_particles))
+# meshscatter!(scene, particles, color = colors, markersize = 0.05)
+# nparticles = Makie.Observable(0)
+# for i=1:10
+#     addparticle!(particles, colors, nparticles)
+# end
+# update_cam!(scene, FRect3D(Vec3f0(0), Vec3f0(1)))
+# # scene.center = false # don't reset the camera by display
+# N = 1000
+# record(scene, "assets/output.mp4", 1:N) do iter
+#     isodd(iter) && addparticle!(particles, colors, nparticles)
+#     repel(particles, nparticles[])
+# end
 
 
 
@@ -197,8 +197,9 @@ end
 """
     get_particle(_face_coord_temp::Array, i::Int)
 
+Getestete Funktion, 05 JAN 2023
 """
-function get_particle(_face_coord_temp::Array, i::Int)
+function get_particle(_face_coord_temp::Array, r, i::Int)
     particle = cat(dims=2,ones(size(_face_coord_temp[:,1,3]))*r[i,1],
         ones(size(_face_coord_temp[:,1,3]))*r[i,2],
         ones(size(_face_coord_temp[:,1,3]))*r[i,3]
@@ -208,11 +209,12 @@ end
 
 
 """
-    get_particle_position(_face_coord_temp::Array, N_temp, i::Int)
+    get_particle_position(_face_coord_temp::Array, N_temp, r, i::Int)
 
+Getestete Funktion, 05 JAN 2023
 """
-function get_particle_position(_face_coord_temp::Array, N_temp, i::Int)
-    particle = get_particle(_face_coord_temp, i)
+function get_particle_position(_face_coord_temp::Array, N_temp, r, i::Int)
+    particle = get_particle(_face_coord_temp, r, i)
     len_face_coord = length(_face_coord_temp[:,1,1])
     reshape_it = reshape(_face_coord_temp[:,1,:],len_face_coord,3)
     placeholder = sum((particle-reshape_it).*N_temp,dims=2)
@@ -238,9 +240,9 @@ P_plan(a,b,a1) = ((sum(b.*a,dims=2)./(sqrt.(sum(a.^2,dims=2)))*ones(1,3)).*[
 # PLOTTING DONE BY MAKIE.jl
 ##############################################################
 
-scene = Makie.Scene(resolution = (400,400));
-f, ax, pl = Makie.mesh(mesh_loaded, axis=(type=Axis3,))  # plot the mesh
-wireframe!(ax, mesh_loaded, color=(:black, 0.2), linewidth=2, transparency=true)  # only for the asthetic
+# scene = Makie.Scene(resolution = (400,400));
+# f, ax, pl = Makie.mesh(mesh_loaded, axis=(type=Axis3,))  # plot the mesh
+# wireframe!(ax, mesh_loaded, color=(:black, 0.2), linewidth=2, transparency=true)  # only for the asthetic
 
 
 ##############################################################
@@ -375,7 +377,8 @@ for i = 1:length(Faces[:,1])
 
 end
 F_neighbourg[F_neighbourg .== 0] .= NaN
-# F_neighbourg[:,maximum_neighbour+1:end] = []  # TODO: checken, was das machen soll
+F_neighbourg = [isnan(val) ? NaN : Int(val) for val in F_neighbourg]
+F_neighbourg = F_neighbourg[:,1:maximum_neighbour]  # create a subset of the matrix
 
 
 ##############################################################
@@ -434,16 +437,46 @@ for i=1:num_part
     face_coord_temp = Faces_coord[index_binary,:,:]
     N_temp = N[index_binary,:] |> vec_of_vec_to_array  # transform the vec of vec into array
 
-    p0s = get_particle_position(face_coord_temp, N_temp, i)
+    # test_r = zeros(num_part,3); # Position of particles
+    # test_r[i,:] = [-1.9723   -0.7289   -1.6762]
+    # test_face_coord_temp = cat([      -2.1644   -2.0210   -2.4077
+    # -1.8610   -2.2324   -2.0210
+    # -2.1644   -1.8090   -2.0210
+    # -1.6599   -2.0210   -1.8090
+    # -1.6599   -1.8610   -2.0210
+    # -2.0210   -2.2324   -2.4077], [    -0.2679   -0.6059   -0.5704
+    #     -0.9357   -0.9116   -0.6059
+    #     -0.2679   -0.3224   -0.6059
+    #     -0.6272   -0.6059   -0.3224
+    #     -0.6272   -0.9357   -0.6059
+    #     -0.6059   -0.9116   -0.5704], [    
+    #         -2.3802   -2.3782   -2.3569
+    #         -2.3693   -2.3507   -2.3782
+    #         -2.3802   -2.3978   -2.3782
+    #         -2.3951   -2.3782   -2.3978
+    #         -2.3951   -2.3693   -2.3782
+    #         -2.3782   -2.3507   -2.3569], dims=3)
+
+    # test_N_temp = [     -0.0578   -0.0304   -0.9979
+    # -0.0533   -0.0528   -0.9972
+    # -0.0537   -0.0287   -0.9981
+    # -0.0486   -0.0325   -0.9983
+    # -0.0497   -0.0510   -0.9975
+    # -0.0594   -0.0485   -0.9971]
+
+    # face_coord_temp = test_face_coord_temp
+    # N_temp = test_N_temp
+    # r = test_r
+    p0s = get_particle_position(face_coord_temp, N_temp, r, i)
 
     # Check what face in which the projection is
     p1p2 = reshape(face_coord_temp[:,2,:]-face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
     p1p3 = reshape(face_coord_temp[:,3,:]-face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
     p1p0 = p0s-reshape(face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
-    p1p3crossp1p2 = [p1p3[:,2].*p1p2[:,3]-p1p3[:,3].*p1p2[:,2],-p1p3[:,1].*p1p2[:,3]+p1p3[:,3].*p1p2[:,1],p1p3[:,1].*p1p2[:,2]-p1p3[:,2].*p1p2[:,1]] |> vec_of_vec_to_array
-    p1p3crossp1p0 = [p1p3[:,2].*p1p0[:,3]-p1p3[:,3].*p1p0[:,2],-p1p3[:,1].*p1p0[:,3]+p1p3[:,3].*p1p0[:,1],p1p3[:,1].*p1p0[:,2]-p1p3[:,2].*p1p0[:,1]] |> vec_of_vec_to_array
-    p1p2crossp1p0 = [p1p2[:,2].*p1p0[:,3]-p1p2[:,3].*p1p0[:,2],-p1p2[:,1].*p1p0[:,3]+p1p2[:,3].*p1p0[:,1],p1p2[:,1].*p1p0[:,2]-p1p2[:,2].*p1p0[:,1]] |> vec_of_vec_to_array
-    p1p2crossp1p3 = [p1p2[:,2].*p1p3[:,3]-p1p2[:,3].*p1p3[:,2],-p1p2[:,1].*p1p3[:,3]+p1p2[:,3].*p1p3[:,1],p1p2[:,1].*p1p3[:,2]-p1p2[:,2].*p1p3[:,1]] |> vec_of_vec_to_array
+    p1p3crossp1p2 = [p1p3[:,2].*p1p2[:,3]-p1p3[:,3].*p1p2[:,2],-p1p3[:,1].*p1p2[:,3]+p1p3[:,3].*p1p2[:,1],p1p3[:,1].*p1p2[:,2]-p1p3[:,2].*p1p2[:,1]] |> vec_of_vec_to_array |> Transpose
+    p1p3crossp1p0 = [p1p3[:,2].*p1p0[:,3]-p1p3[:,3].*p1p0[:,2],-p1p3[:,1].*p1p0[:,3]+p1p3[:,3].*p1p0[:,1],p1p3[:,1].*p1p0[:,2]-p1p3[:,2].*p1p0[:,1]] |> vec_of_vec_to_array |> Transpose
+    p1p2crossp1p0 = [p1p2[:,2].*p1p0[:,3]-p1p2[:,3].*p1p0[:,2],-p1p2[:,1].*p1p0[:,3]+p1p2[:,3].*p1p0[:,1],p1p2[:,1].*p1p0[:,2]-p1p2[:,2].*p1p0[:,1]] |> vec_of_vec_to_array |> Transpose
+    p1p2crossp1p3 = [p1p2[:,2].*p1p3[:,3]-p1p2[:,3].*p1p3[:,2],-p1p2[:,1].*p1p3[:,3]+p1p2[:,3].*p1p3[:,1],p1p2[:,1].*p1p3[:,2]-p1p2[:,2].*p1p3[:,1]] |> vec_of_vec_to_array |> Transpose
 
     len_p1p3crossp1p2 = length(p1p3crossp1p2[:,1])
 
@@ -461,7 +494,7 @@ for i=1:num_part
     # % particle can be projected. 
     # "index_binary(index_face_in)" are the faces number(s) in which the 
     # particle can be projected
-    index_face_in = setdiff(index_face_out, reshape([1:len_p1p3crossp1p2;], :, 1))
+    index_face_in = setdiff(reshape([1:len_p1p3crossp1p2;], :, 1), index_face_out)  # Note: links muss die vollständige Liste stehen!
 
     # If the projections are in no face, take the average projection and
     # normal vectors. Save the faces number used
@@ -480,6 +513,8 @@ for i=1:num_part
         r[i,:] = p0s[index_face_in,:]
     end
 end
+
+num_face = [isnan(val) ? NaN : Int(val) for val in num_face]   # ! TODO: check if this line is necessary 
 
 # % find faces closer to each points and associated normal vector
 # %%%%%%%%%%%%
@@ -513,7 +548,7 @@ n = n./(sqrt.(sum(n.^2,dims=2))*ones(1,3)) # And normalise orientation vector
 # % force, displacement and reorientation for all particles. In the second
 # % part, for each particle project them on closest face. In the third part,
 # % we sometimes plot the position and orientation of the cells
-tt=1  # TODO: remove this line
+tt = 1  # TODO: Remove this line
 for tt=1:num_step #number of time steps
     r_modified = [];
     # if loop to change forces and velocity after some time because in
@@ -603,6 +638,7 @@ for tt=1:num_step #number of time steps
     ##############################################################
 
     Norm_vect = ones(num_part,3);
+
     for i = 1:length(r[:,1])
         # Search for faces around the particle before displacement in wich the
         # cell could migrate. Only face with at least one vertex within the
@@ -650,17 +686,17 @@ for tt=1:num_step #number of time steps
         face_coord_temp = Faces_coord_temp[index_binary,:,:]
         N_temp = NV[index_binary,:]
 
-        p0s = get_particle_position(face_coord_temp, N_temp, i)  # get the position of the particle on the face
+        p0s = get_particle_position(face_coord_temp, N_temp, r, i)  # get the position of the particle on the face
 
         # Check what face in which the projection is
         p1p2 = reshape(face_coord_temp[:,2,:]-face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
         p1p3 = reshape(face_coord_temp[:,3,:]-face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
         p1p0 = p0s-reshape(face_coord_temp[:,1,:],length(face_coord_temp[:,1,1]),3);
-        p1p3crossp1p2 = [p1p3[:,2].*p1p2[:,3]-p1p3[:,3].*p1p2[:,2],-p1p3[:,1].*p1p2[:,3]+p1p3[:,3].*p1p2[:,1],p1p3[:,1].*p1p2[:,2]-p1p3[:,2].*p1p2[:,1]] |> vec_of_vec_to_array
-        p1p3crossp1p0 = [p1p3[:,2].*p1p0[:,3]-p1p3[:,3].*p1p0[:,2],-p1p3[:,1].*p1p0[:,3]+p1p3[:,3].*p1p0[:,1],p1p3[:,1].*p1p0[:,2]-p1p3[:,2].*p1p0[:,1]] |> vec_of_vec_to_array
-        p1p2crossp1p0 = [p1p2[:,2].*p1p0[:,3]-p1p2[:,3].*p1p0[:,2],-p1p2[:,1].*p1p0[:,3]+p1p2[:,3].*p1p0[:,1],p1p2[:,1].*p1p0[:,2]-p1p2[:,2].*p1p0[:,1]] |> vec_of_vec_to_array
-        p1p2crossp1p3 = [p1p2[:,2].*p1p3[:,3]-p1p2[:,3].*p1p3[:,2],-p1p2[:,1].*p1p3[:,3]+p1p2[:,3].*p1p3[:,1],p1p2[:,1].*p1p3[:,2]-p1p2[:,2].*p1p3[:,1]] |> vec_of_vec_to_array
-
+        p1p3crossp1p2 = [p1p3[:,2].*p1p2[:,3]-p1p3[:,3].*p1p2[:,2],-p1p3[:,1].*p1p2[:,3]+p1p3[:,3].*p1p2[:,1],p1p3[:,1].*p1p2[:,2]-p1p3[:,2].*p1p2[:,1]] |> vec_of_vec_to_array |> Transpose
+        p1p3crossp1p0 = [p1p3[:,2].*p1p0[:,3]-p1p3[:,3].*p1p0[:,2],-p1p3[:,1].*p1p0[:,3]+p1p3[:,3].*p1p0[:,1],p1p3[:,1].*p1p0[:,2]-p1p3[:,2].*p1p0[:,1]] |> vec_of_vec_to_array |> Transpose
+        p1p2crossp1p0 = [p1p2[:,2].*p1p0[:,3]-p1p2[:,3].*p1p0[:,2],-p1p2[:,1].*p1p0[:,3]+p1p2[:,3].*p1p0[:,1],p1p2[:,1].*p1p0[:,2]-p1p2[:,2].*p1p0[:,1]] |> vec_of_vec_to_array |> Transpose
+        p1p2crossp1p3 = [p1p2[:,2].*p1p3[:,3]-p1p2[:,3].*p1p3[:,2],-p1p2[:,1].*p1p3[:,3]+p1p2[:,3].*p1p3[:,1],p1p2[:,1].*p1p3[:,2]-p1p2[:,2].*p1p3[:,1]] |> vec_of_vec_to_array |> Transpose
+    
         len_p1p3crossp1p2 = length(p1p3crossp1p2[:,1])
 
         # "index_face_out" are the row index(es) of face_coord_temp in which a
@@ -677,7 +713,7 @@ for tt=1:num_step #number of time steps
         # % particle can be projected. 
         # "index_binary(index_face_in)" are the faces number(s) in which the 
         # particle can be projected
-        index_face_in = setdiff(index_face_out, reshape([1:len_p1p3crossp1p2;], :, 1))
+        index_face_in = setdiff(reshape([1:len_p1p3crossp1p2;], :, 1), index_face_out)  # Note: links muss die vollständige Liste stehen!
 
         # % If the projections are in no face, take the average projection and
         # % normal vectors. Save the faces number used
@@ -689,15 +725,20 @@ for tt=1:num_step #number of time steps
         # % If the projections are in a face, save its number, normal vector and
         # % projected point
         else
+
+            ##########################################
+            # ! TODO: hier befindet sich der Fehler zwischen den beiden Fällen
             if length(index_face_in) > 1
                 Norm_vect[i,:] = mean(N_temp[index_face_in,:],dims=1)
                 r[i,:] = mean(p0s[index_face_in,:],dims=1)
-                num_face[i,1:length(index_face_in)] = full_number_faces[index_binary[index_face_in]]'  # TODO: this is empty
+                num_face[i,1:length(index_face_in)] = full_number_faces[index_binary[index_face_in]]'  # ! bug
             else
                 Norm_vect[i,:] = N_temp[index_face_in,:]
-                num_face[i,1] = full_number_faces[index_binary[index_face_in]]   # TODO: this is empty
+                num_face[i,1] = full_number_faces[index_binary[index_face_in]]   # ! bug
                 r[i,:] = p0s[index_face_in,:]
             end
+            ##########################################
+
         end
     end
 
