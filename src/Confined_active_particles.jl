@@ -548,7 +548,6 @@ n = n./(sqrt.(sum(n.^2,dims=2))*ones(1,3)) # And normalise orientation vector
 # % force, displacement and reorientation for all particles. In the second
 # % part, for each particle project them on closest face. In the third part,
 # % we sometimes plot the position and orientation of the cells
-tt = 1  # TODO: Remove this line
 for tt=1:num_step #number of time steps
     r_modified = [];
     # if loop to change forces and velocity after some time because in
@@ -652,9 +651,8 @@ for tt=1:num_step #number of time steps
 
         if length(number_faces) == 1
             Faces_numbers1 = F_neighbourg[number_faces,:]
-            #Faces_numbers1 = Faces_numbers1[isnan(Faces_numbers1) == 0]
-            full_number_faces = Faces_numbers1[replace!(Faces_numbers1, NaN=>0)]
-            # full_number_faces = Faces_numbers1[isnan(Faces_numbers1) == 0]  # NOTE: I replaced it without checking
+            Faces_numbers1 = replace!(Faces_numbers1, NaN=>0)
+            full_number_faces = Faces_numbers1[Faces_numbers1 .!= 0]'  # remove the 0 values
         else
             full_number_faces = number_faces'
             num_face_i = 1
@@ -725,20 +723,15 @@ for tt=1:num_step #number of time steps
         # % If the projections are in a face, save its number, normal vector and
         # % projected point
         else
-
-            ##########################################
-            # ! TODO: hier befindet sich der Fehler zwischen den beiden Fällen
             if length(index_face_in) > 1
                 Norm_vect[i,:] = mean(N_temp[index_face_in,:],dims=1)
                 r[i,:] = mean(p0s[index_face_in,:],dims=1)
-                num_face[i,1:length(index_face_in)] = full_number_faces[index_binary[index_face_in]]'  # ! bug
+                num_face[i,1:length(index_face_in)] = full_number_faces[index_binary[index_face_in]]'
             else
                 Norm_vect[i,:] = N_temp[index_face_in,:]
-                num_face[i,1] = full_number_faces[index_binary[index_face_in]]   # ! bug
+                num_face[i,1] = full_number_faces[index_binary[index_face_in]][1]
                 r[i,:] = p0s[index_face_in,:]
             end
-            ##########################################
-
         end
     end
 
@@ -764,7 +757,7 @@ for tt=1:num_step #number of time steps
         for i=1:num_part
             nr_dot=[nr_dot; r_dot[i,:]/norm(r_dot[i,:])];
         end
-        
+
         nr_dot_cross=[];
         for i=1:num_part
             cross_Nrdot=cross(n[i,:],Norm_vect[i,:])
@@ -797,7 +790,7 @@ for tt=1:num_step #number of time steps
         v_norm=v_tp./(sqrt.(sum(v_tp.^2,dims=2))*ones(1,3));
         # Sum v_tp vectors and devide by number of particle to obtain order
         # parameter of collective motion for spheroids
-        v_order[tt/plotstep]=(1/num_part)*norm(sum(v_norm,dims=1));
+        v_order[Int(tt/plotstep)]=(1/num_part)*norm(sum(v_norm,dims=1))
 
         # #Calculate angles for equirectangular map projection
         # phi1 = asin(r[:,3]/sqrt.(sum(r.^2,dims=2)));   # elevation angle
