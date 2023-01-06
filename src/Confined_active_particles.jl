@@ -359,7 +359,7 @@ calculate force, displacement and reorientation for all particles. In the second
 part, for each particle project them on closest face. In the third part,
 we sometimes plot the position and orientation of the cells
 """
-function simulate_next_step(tt, particles_observ, face_neighbors, num_face, num_part, n, Norm_vect, io)
+function simulate_next_step(tt, particles_observ, face_neighbors, num_face, num_part, n, Norm_vect)
     r = particles_observ[] |> vec_of_vec_to_array
 
     # ! TODO: remove the constants
@@ -562,8 +562,6 @@ function simulate_next_step(tt, particles_observ, face_neighbors, num_face, num_
 
         particles_observ[] = array_to_vec_of_vec(r)
 
-        recordframe!(io)   # record a new frame
-        println("Hey, I'm recording a frame")
         # particles_positions = vec(Point3f0.(r[:,1],r[:,2],r[:,3]))   # TODO: transform it into a Observable
         # plot the particles 
         # meshscatter!(particles_positions, color = :black, markersize = 0.05)
@@ -670,9 +668,9 @@ end
 # Step 5.: Simulate and visualize
 ########################################################################################
 
-scene = Makie.Scene(resolution = (400,400));
-# mesh!(scene, mesh_loaded, color = :gray)
-f, ax, pl = Makie.mesh(mesh_loaded, axis=(type=Axis3,))  # plot the mesh
+scene = Scene(resolution = (400,400), show_axis = false);
+
+figure, ax, pl = Makie.mesh(mesh_loaded, axis=(type=Axis3,))  # plot the mesh
 
 particles_observ[] = array_to_vec_of_vec(r)
 meshscatter!(particles_observ, color = :black, markersize = 0.05)  # ! overgive the Observable the plotting function to TRACK it
@@ -681,11 +679,8 @@ meshscatter!(particles_observ, color = :black, markersize = 0.05)  # ! overgive 
 n = P_perp(Norm_vect,n)
 n = n./(sqrt.(sum(n.^2,dims=2))*ones(1,3)) # And normalise orientation vector
 
-# ! record the simulation 
+# ; framerate = 24
 # update_cam!(scene, FRect3D(Vec3f0(0), Vec3f0(1)))
-record(scene, joinpath("assets", "confined_active_particles.mp4"),
-    framerate = 24, profile = "main") do io
-    for tt=1:num_step #number of time steps
-        simulate_next_step(tt, particles_observ, face_neighbors, num_face, num_part, n, Norm_vect, io)
-    end
+record(figure, "assets/confined_active_particles.mp4", 1:num_step) do tt
+    simulate_next_step(tt, particles_observ, face_neighbors, num_face, num_part, n, Norm_vect)
 end
