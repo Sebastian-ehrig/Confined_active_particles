@@ -299,20 +299,6 @@ end
 
 
 """
-    calculate_order_parameter(v_order, tt, v_tp)
-
-"""
-function calculate_order_parameter(v_order, tt, v_tp)
-    for i=1:n
-        v_norm[i,:]=v_tp[i,:]/norm(v_tp[i,:])
-    end
-    v_order[tt]=(1/n)*norm(sum(v_norm))
-
-    return v_order
-end
-
-
-"""
     get_index_binary(Dist2faces::Array)
 
 Faces with closest point to r(i,:) and associated normal vectors
@@ -349,6 +335,74 @@ end
 
 
 """
+    calculate_forces_between_particles(Vect, Distmat, k)
+
+"""
+function calculate_forces_between_particles(Vect, Distmat, k)
+    sigma_n = 5/12; # particle radius
+    r_adh = 1; # Cut off radius for adhesive forces
+    k_adh = 0.75; # Adhesive forces
+
+    Fij_rep = (-k*(2*sigma_n.-Distmat))./(2*sigma_n)
+    Fij_adh = (k_adh*(2*sigma_n.-Distmat))./(2*sigma_n-r_adh)
+
+    # No force if particles too far from each other or if particle itself
+    Fij_rep[(Distmat .>= 2*sigma_n) .| (Distmat .== 0)] .= 0 
+    Fij_adh[(Distmat .< 2*sigma_n) .| (Distmat .> r_adh) .| (Distmat .== 0)] .= 0
+
+    # Fij is the force between particles
+    # Fij(1,2,1) = -k(2sigma_n - norm(r(2,:)-r(1,:))) * (r(1,1)-r(2,1)) / norm(r(2,:)-r(1,:))
+    # Fij(1,2,2) = -k(2sigma_n - norm(r(2,:)-r(1,:))) * (r(2,2)-r(2,2)) / norm(r(2,:)-r(1,:))
+    # Fij(1,2,3) = -k(2sigma_n - norm(r(2,:)-r(1,:))) * (r(2,3)-r(2,3)) / norm(r(2,:)-r(1,:))
+    # if 0 < norm(r(2,:)-r(1,:)) < 2*sigma_n
+    Fij = Fij_rep .+ Fij_adh
+    Fij = cat(dims=3,Fij,Fij,Fij).*(Vect./(cat(dims=3,Distmat,Distmat,Distmat)))
+
+    # % Actual force felt by each particle
+    return reshape(sum(replace!(Fij, NaN=>0), dims=1),: ,size(Fij,3))
+end
+
+
+"""
+    correct_n(r_dot, n, tau, dt)
+
+Visceck-type n correction adapted from "Phys. Rev. E 74, 061908"
+"""
+function correct_n(r_dot, n, tau, dt)
+    ncross = cat(dims=2,n[:,2].*r_dot[:,3]-n[:,3].*r_dot[:,2],
+        -(n[:,1].*r_dot[:,3]-n[:,3].*r_dot[:,1]),
+        n[:,1].*r_dot[:,2]-n[:,2].*r_dot[:,1]) ./
+        (sqrt.(sum(r_dot.^2,dims=2))*ones(1,3))
+
+    n_cross_correction = (1/tau)*ncross*dt
+
+    new_n = n-cat(dims=2,n[:,2].*n_cross_correction[:,3]-n[:,3].*n_cross_correction[:,2],
+        -(n[:,1].*n_cross_correction[:,3]-n[:,3].*n_cross_correction[:,1]),
+        n[:,1].*n_cross_correction[:,2]-n[:,2].*n_cross_correction[:,1])
+
+    return new_n./(sqrt.(sum(new_n.^2,dims=2))*ones(1,3))
+end
+
+
+"""
+    calculate_order_parameter(r, r_dot, num_part)
+
+"""
+function calculate_order_parameter(r, r_dot, num_part, tt, plotstep)
+    # Define a vector normal to position vector and velocity vector
+    v_tp=[r[:,2].*r_dot[:,3]-r[:,3].*r_dot[:,2],-r[:,1].*r_dot[:,3]+r[:,3].*r_dot[:,1],r[:,1].*r_dot[:,2]-r[:,2].*r_dot[:,1]];
+    v_tp = v_tp |> vec_of_vec_to_array |> transpose
+    # Normalize v_tp
+    v_norm=v_tp./(sqrt.(sum(v_tp.^2,dims=2))*ones(1,3));
+    # Sum v_tp vectors and devide by number of particle to obtain order
+    # parameter of collective motion for spheroids
+    v_order[Int(tt/plotstep)]=(1/num_part)*norm(sum(v_norm,dims=1))
+
+    return v_order
+end
+
+
+"""
     simulate_next_step(tt, r, num_part, n, Norm_vect)
 
 calculate force, displacement and reorientation for all particles. In the second
@@ -367,13 +421,10 @@ function simulate_next_step(tt, observe_r, face_neighbors, num_face, num_part, o
 
     sigma_n = 5/12; # particle radius
 
-
     # Define parameters for the force calculations:
     # ---------------------------------------------
-    r_adh = 1; # Cut off radius for adhesive forces
     k = 10.; # Elastic constant for repulsive forces
     k_next = 10.; # value of elastic constant after a certain number of timesteps
-    k_adh = 0.75; # Adhesive forces
 
     mu = 1.; # arbitrary mass of particle
     tau = 1; #time of relaxation of collision between 2 particles
@@ -398,52 +449,14 @@ function simulate_next_step(tt, observe_r, face_neighbors, num_face, num_part, o
         )
 
     Distmat = sqrt.(sum(Vect.^2,dims=3))[:,:,1]  # distance of each point with the others
-    
-    Fij_rep = (-k*(2*sigma_n.-Distmat))./(2*sigma_n)
-    Fij_adh = (k_adh*(2*sigma_n.-Distmat))./(2*sigma_n-r_adh)
 
-    # No force if particles too far from each other or if particle itself
-    Fij_rep[(Distmat .>= 2*sigma_n) .| (Distmat .== 0)] .= 0 
-    Fij_adh[(Distmat .< 2*sigma_n) .| (Distmat .> r_adh) .| (Distmat .== 0)] .= 0
+    F_track = calculate_forces_between_particles(Vect, Distmat, k)  # calculate the force between particles
+    r_dot = P_perp(Norm_vect, v0.*n+mu.*F_track)  # velocity of each particle
+    r = r+r_dot*dt  # calculate next position
 
-    # Fij is the force between particles
-    # Fij(1,2,1) = -k(2sigma_n - norm(r(2,:)-r(1,:))) * (r(1,1)-r(2,1)) / norm(r(2,:)-r(1,:))
-    # Fij(1,2,2) = -k(2sigma_n - norm(r(2,:)-r(1,:))) * (r(2,2)-r(2,2)) / norm(r(2,:)-r(1,:))
-    # Fij(1,2,3) = -k(2sigma_n - norm(r(2,:)-r(1,:))) * (r(2,3)-r(2,3)) / norm(r(2,:)-r(1,:))
-    # if 0 < norm(r(2,:)-r(1,:)) < 2*sigma_n
-    Fij = Fij_rep .+ Fij_adh
-    Fij = cat(dims=3,Fij,Fij,Fij).*(Vect./(cat(dims=3,Distmat,Distmat,Distmat)))
-    
-    # % Actual force felt by each particle
-    F_track = reshape(sum(replace!(Fij, NaN=>0), dims=1),: ,size(Fij,3)) 
-    # % Velocity of each particle
-    r_dot = P_perp(Norm_vect,v0.*n+mu.*F_track)
+    n = correct_n(r_dot, n, tau, dt)  # make a small correct for n according to Vicsek
 
-    r = r+r_dot*dt; # % calculate next position
-
-
-    ##############################################################
-    # Visceck-type n correction adapted from "Phys. Rev. E 74, 061908"
-    ##############################################################
-
-    ncross = cat(dims=2,n[:,2].*r_dot[:,3]-n[:,3].*r_dot[:,2],
-        -(n[:,1].*r_dot[:,3]-n[:,3].*r_dot[:,1]),
-        n[:,1].*r_dot[:,2]-n[:,2].*r_dot[:,1]) ./
-        (sqrt.(sum(r_dot.^2,dims=2))*ones(1,3))
-
-    n_cross_correction = (1/tau)*ncross*dt
-
-    new_n = n-cat(dims=2,n[:,2].*n_cross_correction[:,3]-n[:,3].*n_cross_correction[:,2],
-        -(n[:,1].*n_cross_correction[:,3]-n[:,3].*n_cross_correction[:,1]),
-        n[:,1].*n_cross_correction[:,2]-n[:,2].*n_cross_correction[:,1])
-
-    n = new_n./(sqrt.(sum(new_n.^2,dims=2))*ones(1,3))
-
-    ##############################################################
-    # End Visceck-type n correction
-    ##############################################################
-
-    Norm_vect = ones(num_part,3);
+    # Norm_vect = ones(num_part,3);
 
     for i = 1:length(r[:,1])
         number_faces = replace!(num_face[i,:], NaN=>0)'
@@ -456,7 +469,6 @@ function simulate_next_step(tt, observe_r, face_neighbors, num_face, num_part, o
             full_number_faces = Faces_numbers1[Faces_numbers1 .!= 0]'  # remove the 0 values
         else
             full_number_faces = number_faces'
-            num_face_i = 1
             for num_face_i = 1:length(number_faces)
                 Faces_numbers1 = face_neighbors[Int(number_faces[num_face_i]),:]'
                 Faces_numbers1 = replace!(Faces_numbers1, NaN=>0)
@@ -508,6 +520,7 @@ function simulate_next_step(tt, observe_r, face_neighbors, num_face, num_part, o
         num_partic = ones(size(Distmat));
         num_partic[(Distmat .== 0) .| (Distmat .> 2.4*sigma_n)] .= 0;
         number_neighbours=sum(num_partic,dims=2);  # list of nearest neighbour to each particle
+
         N_color=[];
         for i=1:num_part
             nr_dot[i,:] = r_dot[i,:]/norm(r_dot[i,:]);
@@ -516,21 +529,7 @@ function simulate_next_step(tt, observe_r, face_neighbors, num_face, num_part, o
             append!(N_color, Int.(number_neighbours[i,:]))
         end
 
-
-
-
-        ##############################################################
-        # Definition of the order parameter:
-        ##############################################################
-
-        # Define a vector normal to position vector and velocity vector
-        v_tp=[r[:,2].*r_dot[:,3]-r[:,3].*r_dot[:,2],-r[:,1].*r_dot[:,3]+r[:,3].*r_dot[:,1],r[:,1].*r_dot[:,2]-r[:,2].*r_dot[:,1]];
-        v_tp = v_tp |> vec_of_vec_to_array |> transpose
-        # Normalize v_tp
-        v_norm=v_tp./(sqrt.(sum(v_tp.^2,dims=2))*ones(1,3));
-        # Sum v_tp vectors and devide by number of particle to obtain order
-        # parameter of collective motion for spheroids
-        v_order[Int(tt/plotstep)]=(1/num_part)*norm(sum(v_norm,dims=1))
+        v_order = calculate_order_parameter(r, r_dot, num_part, tt, plotstep)
 
         # #Calculate angles for equirectangular map projection
         # phi1 = asin(r[:,3]/sqrt.(sum(r.^2,dims=2)));   # elevation angle
@@ -540,9 +539,9 @@ function simulate_next_step(tt, observe_r, face_neighbors, num_face, num_part, o
         observe_n[] = array_to_vec_of_vec(n)
         observe_nr_dot[] = array_to_vec_of_vec(nr_dot)
         observe_nr_dot_cross[] = array_to_vec_of_vec(nr_dot_cross)
-
     end
 end
+
 
 
 # Define perpendicular projection functions, adapted from "PhysRevE 91 022306"
@@ -602,18 +601,14 @@ Norm_vect = ones(num_part,3); # Initialisation of normal vector of each faces
 num_face = fill(NaN, num_part, length(face_neighbors[1,:])^2)   # Initialisation of face on which is the particle
 
 r = observe_r[] |> vec_of_vec_to_array  # transform the Observable vector to our used Matrix notation
-n = observe_n[] |> vec_of_vec_to_array  # transform the Observable vector to our used Matrix notation
+n = observe_n[] |> vec_of_vec_to_array
 
 # for-loop where particle are randomly positioned and orientated in a 3D
 # box, then projected on the closest face. The normal vector of that face
 # is then also saved
-
+# TODO: implement parallel execution -> diese Funktion ist unnötig langsam
 for i=1:num_part
     r[i,:] = spread_particles_random_on_mesh(vertices)
-    # Faces_coord -> 9336×3×3 Array{Float32, 3}:
-    # N -> 28008-element Vector{GeometryBasics.Vec{3, Float32}}:
-    # r -> 200*3 Array{Float32, 2}:
-    # i -> int
     p0s, N_temp, index_binary, index_face_in, index_face_out = next_face_for_the_particle(Faces_coord, N, r, i)
     n[i,:] = [-1+2*rand(1)[1],-1+2*rand(1)[1],-1+2*rand(1)[1]]  #random particle orientation
     r[i,:], Norm_vect[i,:], num_face[i,1] = update_initial_particle!(p0s, N_temp, index_binary, index_face_in, index_face_out, i)
@@ -645,7 +640,6 @@ arrows!(observe_r, observe_nr_dot_cross, arrowsize = 0.05, linecolor = (:blue, 0
 n = P_perp(Norm_vect,n)
 n = n./(sqrt.(sum(n.^2,dims=2))*ones(1,3)) # And normalise orientation vector
 
-# update_cam!(scene, FRect3D(Vec3f0(0), Vec3f0(1)))
 record(figure, "assets/confined_active_particles.mp4", 1:num_step; framerate = 24) do tt
     simulate_next_step(tt, observe_r, face_neighbors, num_face, num_part,  observe_n, observe_nr_dot, observe_nr_dot_cross, Norm_vect)
 end
