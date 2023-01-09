@@ -1,7 +1,3 @@
-using NeuralPDE, Lux, Optimization, OptimizationOptimJL
-import ModelingToolkit: Interval
-using ModelingToolkit
-using IntervalSets
 using Makie
 using GLMakie
 using MeshIO
@@ -144,11 +140,11 @@ end
 
 
 """
-    find_face_neighbors(Faces)
+    find_face_neighbors(Faces, Faces_coord)
 
 Create index matrix of neighbourg faces to each face
 """
-function find_face_neighbors(Faces)
+function find_face_neighbors(Faces, Faces_coord)
     
     face_neighbors = fill(NaN, length(Faces[:,1]), 100)  # matrix of neighbourg faces
 
@@ -359,8 +355,11 @@ calculate force, displacement and reorientation for all particles. In the second
 part, for each particle project them on closest face. In the third part,
 we sometimes plot the position and orientation of the cells
 """
-function simulate_next_step(tt, particles_observ, face_neighbors, num_face, num_part, n, Norm_vect)
-    r = particles_observ[] |> vec_of_vec_to_array
+function simulate_next_step(tt, observe_r, face_neighbors, num_face, num_part, observe_n, observe_nr_dot, observe_nr_dot_cross, Norm_vect)
+    r = observe_r[] |> vec_of_vec_to_array
+    n = observe_n[] |> vec_of_vec_to_array
+    nr_dot = observe_nr_dot[] |> vec_of_vec_to_array
+    nr_dot_cross = observe_nr_dot_cross[] |> vec_of_vec_to_array
 
     # ! TODO: remove the constants
     v0 = 0.1; # velocity of particles
@@ -381,13 +380,6 @@ function simulate_next_step(tt, particles_observ, face_neighbors, num_face, num_
 
     dt = 0.01*tau; # Step size
     plotstep = 0.1/dt; # Number of calculation between plot
-
-
-    # Parameters for making movies:
-    #------------------------------
-    rho = 6; # arbitrary value for scaling the vector on plotting. To automatize, maybe from file name value
-    scale=0.1*rho; # Scale the vector for making movies
-
 
     # if loop to change forces and velocity after some time because in
     # first time steps, just repulsive force for homogeneisation of
@@ -512,30 +504,19 @@ function simulate_next_step(tt, particles_observ, face_neighbors, num_face, num_
     
     # %Graphic output if plotstep is a multiple of tt
     if rem(tt,plotstep)==0
-
-        # normalize r_dot for visualization
-        nr_dot = zeros(num_part,3);
-        for i=1:num_part
-            nr_dot[i,:] = r_dot[i,:]/norm(r_dot[i,:]);
-        end
-
-        nr_dot_cross = zeros(num_part,3);
-        for i=1:num_part
-            cross_Nrdot=cross(n[i,:],Norm_vect[i,:])
-            nr_dot_cross[i,:] =cross_Nrdot./norm(cross_Nrdot)
-        end
-
         # %evaluate number of neighbourgs within 2.4 sigma cut off
         num_partic = ones(size(Distmat));
         num_partic[(Distmat .== 0) .| (Distmat .> 2.4*sigma_n)] .= 0;
-        # %list of nearest neighbour to each particle
-        number_neighbours=sum(num_partic,dims=2);
-
-        # % specify colorvalue "c" according to neighbours for particles to plot
+        number_neighbours=sum(num_partic,dims=2);  # list of nearest neighbour to each particle
         N_color=[];
         for i=1:num_part
+            nr_dot[i,:] = r_dot[i,:]/norm(r_dot[i,:]);
+            cross_Nrdot=cross(n[i,:],Norm_vect[i,:])
+            nr_dot_cross[i,:] = cross_Nrdot./norm(cross_Nrdot)
             append!(N_color, Int.(number_neighbours[i,:]))
         end
+
+
 
 
         ##############################################################
@@ -555,35 +536,10 @@ function simulate_next_step(tt, particles_observ, face_neighbors, num_face, num_
         # phi1 = asin(r[:,3]/sqrt.(sum(r.^2,dims=2)));   # elevation angle
         # thet1 = atan2(r[:,2],r[:,1]); # azimuth
 
-
-        ##############################################################
-        # Der folgende Teil ist für die Visualisierung der Zellen
-        ##############################################################
-
-        particles_observ[] = array_to_vec_of_vec(r)
-
-        # particles_positions = vec(Point3f0.(r[:,1],r[:,2],r[:,3]))   # TODO: transform it into a Observable
-        # plot the particles 
-        # meshscatter!(particles_positions, color = :black, markersize = 0.05)
-        
-        # TODO: uncomment the following line if the particle simulation is working
-        # arrow_directions = vec(Point3f0.(scale*nr_dot[:,1],scale*nr_dot[:,2],scale*nr_dot[:,3]))   # TODO: transform it into a Observable 
-
-        # # plot the vector orientation of the particles in black
-        # arr = Makie.arrows!(r[:,1],r[:,2],r[:,3],scale*n[:,1],scale*n[:,2],scale*n[:,3],
-        #     arrowsize = 0.05, linecolor = (:black, 0.7), linewidth = 0.02, lengthscale = 0.1
-        # )
-
-        # # plot the normalized velocity vector in red
-        # arr = Makie.arrows!(
-        #     particles_positions, arrow_directions,
-        #     arrowsize = 0.05, linecolor = (:red, 0.7), linewidth = 0.02, lengthscale = 0.1
-        # )
-
-        # # Binormal vector
-        # arr = Makie.arrows!(r[:,1],r[:,2],r[:,3],scale*nr_dot_cross[:,1],scale*nr_dot_cross[:,2],scale*nr_dot_cross[:,3],
-        #     arrowsize = 0.05, linecolor = (:blue, 0.7), linewidth = 0.02, lengthscale = 0.1
-        # )
+        observe_r[] = array_to_vec_of_vec(r)
+        observe_n[] = array_to_vec_of_vec(n)
+        observe_nr_dot[] = array_to_vec_of_vec(nr_dot)
+        observe_nr_dot_cross[] = array_to_vec_of_vec(nr_dot_cross)
 
     end
 end
@@ -600,15 +556,13 @@ P_plan(a,b,a1) = ((sum(b.*a,dims=2)./(sqrt.(sum(a.^2,dims=2)))*ones(1,3)).*[
 
 
 ########################################################################################
-# Step 1.: Initialize the Observables
+# Step 1.: Initialize the Observables for the visualization
 ########################################################################################
 
-r = zeros(num_part,3); # Position of particles
-n = zeros(num_part,3); # Orientation of particles
-
-particles_observ = Makie.Observable(fill(Point3f0(NaN), num_part))
-
-# @inbounds for i in 1:N   # ! NOTE: Performance boost by using @inbounds
+observe_r = Makie.Observable(fill(Point3f0(NaN), num_part))  # position of particles
+observe_n = Makie.Observable(fill(Point3f0(NaN), num_part))  # normalized orientation of particles
+observe_nr_dot = Makie.Observable(fill(Point3f0(NaN), num_part))  # normalized velocity vector
+observe_nr_dot_cross = Makie.Observable(fill(Point3f0(NaN), num_part))  # normalized binormal vector of the plane normal to the orientation vector
 
 
 ########################################################################################
@@ -616,10 +570,10 @@ particles_observ = Makie.Observable(fill(Point3f0(NaN), num_part))
 ########################################################################################
 
 N = mesh_loaded.normals
-# faces = GeometryBasics.decompose(TriangleFace{Int}, mesh_loaded)  # return the faces of the mesh
-vertices = GeometryBasics.coordinates(mesh_loaded)  # return the vertices of the mesh
-faces = reshape(1:length(vertices), 3, :)'  # return the faces of the mesh
-vertices = vec_of_vec_to_array(vertices)
+vertices = GeometryBasics.coordinates(mesh_loaded) |> vec_of_vec_to_array  # return the vertices of the mesh
+faces = GeometryBasics.decompose(TriangleFace{Int}, mesh_loaded) |> vec_of_vec_to_array  # return the faces of the mesh
+# a = length(vertices)/3
+# faces = Int.(reshape(1:a, 3, :)')  # faster: return the faces of the mesh
 
 
 ########################################################################################
@@ -637,21 +591,23 @@ Faces_coord = cat(dim_data(vertices, faces, 1), dim_data(vertices, faces, 2), di
 
 time_points = Int(num_step/plotstep)
 v_order = zeros(time_points, 1)
-face_neighbors = find_face_neighbors(faces)
+face_neighbors = find_face_neighbors(faces, Faces_coord)
 
 
-########################################################################################
-# Step 4.: Initialize particles on the mesh with random initial orientation
-########################################################################################
+# ########################################################################################
+# # Step 4.: Initialize particles on the mesh with random initial orientation
+# ########################################################################################
 
 Norm_vect = ones(num_part,3); # Initialisation of normal vector of each faces
 num_face = fill(NaN, num_part, length(face_neighbors[1,:])^2)   # Initialisation of face on which is the particle
 
-r = particles_observ[] |> vec_of_vec_to_array  # transform the Observable vector to our used Matrix notation
+r = observe_r[] |> vec_of_vec_to_array  # transform the Observable vector to our used Matrix notation
+n = observe_n[] |> vec_of_vec_to_array  # transform the Observable vector to our used Matrix notation
 
 # for-loop where particle are randomly positioned and orientated in a 3D
 # box, then projected on the closest face. The normal vector of that face
 # is then also saved
+
 for i=1:num_part
     r[i,:] = spread_particles_random_on_mesh(vertices)
     # Faces_coord -> 9336×3×3 Array{Float32, 3}:
@@ -660,8 +616,12 @@ for i=1:num_part
     # i -> int
     p0s, N_temp, index_binary, index_face_in, index_face_out = next_face_for_the_particle(Faces_coord, N, r, i)
     n[i,:] = [-1+2*rand(1)[1],-1+2*rand(1)[1],-1+2*rand(1)[1]]  #random particle orientation
-    r[i,:], Norm_vect[i,:], num_face[i,1] = update_initial_particle!(p0s, N_temp, index_binary, index_face_in, index_face_out, i)  # Update our Observables
+    r[i,:], Norm_vect[i,:], num_face[i,1] = update_initial_particle!(p0s, N_temp, index_binary, index_face_in, index_face_out, i)
 end
+
+# TODO: implement parallel execution
+# Julia supports parallel loops using the Threads.@threads macro. 
+# This macro is affixed in front of a for loop to indicate to Julia that the loop is a multi-threaded region:
 
 
 ########################################################################################
@@ -672,15 +632,20 @@ scene = Scene(resolution = (400,400), show_axis = false);
 
 figure, ax, pl = Makie.mesh(mesh_loaded, axis=(type=Axis3,))  # plot the mesh
 
-particles_observ[] = array_to_vec_of_vec(r)
-meshscatter!(particles_observ, color = :black, markersize = 0.05)  # ! overgive the Observable the plotting function to TRACK it
+observe_r[] = array_to_vec_of_vec(r)
+observe_n[] = array_to_vec_of_vec(n)
+
+meshscatter!(observe_r, color = :black, markersize = 0.05)  # ! overgive the Observable the plotting function to TRACK it
+arrows!(observe_r, observe_n, arrowsize = 0.05, linecolor = (:black, 0.7), linewidth = 0.02, lengthscale = scale)
+arrows!(observe_r, observe_nr_dot, arrowsize = 0.05, linecolor = (:red, 0.7), linewidth = 0.02, lengthscale = scale)
+arrows!(observe_r, observe_nr_dot_cross, arrowsize = 0.05, linecolor = (:blue, 0.7), linewidth = 0.02, lengthscale = scale)
+# wireframe!(ax, mesh_loaded, color=(:black, 0.2), linewidth=2, transparency=true)  # only for the asthetic
 
 # %Project the orientation of the corresponding faces using normal vectors
 n = P_perp(Norm_vect,n)
 n = n./(sqrt.(sum(n.^2,dims=2))*ones(1,3)) # And normalise orientation vector
 
-# ; framerate = 24
 # update_cam!(scene, FRect3D(Vec3f0(0), Vec3f0(1)))
-record(figure, "assets/confined_active_particles.mp4", 1:num_step) do tt
-    simulate_next_step(tt, particles_observ, face_neighbors, num_face, num_part, n, Norm_vect)
+record(figure, "assets/confined_active_particles.mp4", 1:num_step; framerate = 24) do tt
+    simulate_next_step(tt, observe_r, face_neighbors, num_face, num_part,  observe_n, observe_nr_dot, observe_nr_dot_cross, Norm_vect)
 end
