@@ -1,3 +1,10 @@
+# ! TODO:
+# 1. fix random spread of particles
+# 2. create rectangular planar equiareal parametrization mesh (--> C++ file)
+# 3. link 2D mesh simulation with the 3D mesh in GLMakie over chaining the Observable with 'lift'
+#    -> see https://docs.makie.org/v0.19/documentation/nodes/index.html#the_observable_structure
+
+
 using Makie
 using GLMakie
 using MeshIO
@@ -19,6 +26,7 @@ GLMakie.set_window_config!(
 UpFolder = pwd();
 namestructure = "ellipsoid_x4"
 mesh_loaded = FileIO.load("assets/ellipsoid_x4.stl")
+# mesh_loaded = FileIO.load("meshes/camel_uv.stl")
 
 # % Define folder structure and pre-process meshes:
 # % -----------------------------------------------
@@ -49,7 +57,7 @@ v0_next = 0.1; # if velocity is to be changed after a certain number of timestep
 
 num_step = 300; # Number of timesteps
 
-sigma_n = 5/12; # particle radius
+σ = 5/12; # particle radius
 
 # Define parameters for the force calculations:
 # ---------------------------------------------
@@ -58,21 +66,21 @@ k = 10.; # Elastic constant for repulsive forces
 k_next = 10.; # value of elastic constant after a certain number of timesteps
 k_adh = 0.75; # Adhesive forces
 
-mu = 1.; # arbitrary mass of particle
-tau = 1; #time of relaxation of collision between 2 particles
+μ = 1.; # arbitrary mass of particle
+τ = 1; #time of relaxation of collision between 2 particles
 
-dt = 0.01*tau; # Step size
+dt = 0.01*τ; # Step size
 plotstep = 0.1/dt; # Number of calculation between plot
 
-b = v0_next/(2*sigma_n*mu*k_next); # for calculating coupling constant
-J = b/tau; # Coupling constant of orientation vectors
-noise=0.002/tau;  #value of the noise amplitude
+b = v0_next/(2*σ*μ*k_next); # for calculating coupling constant
+J = b/τ; # Coupling constant of orientation vectors
+noise=0.002/τ;  #value of the noise amplitude
 hi=noise/(2*sqrt(dt)); # Amplitude of the noise on orientation
 
 # Parameters for making movies:
 #------------------------------
-rho = 6; # arbitrary value for scaling the vector on plotting. To automatize, maybe from file name value
-scale=0.1*rho; # Scale the vector for making movies
+ρ = 6; # arbitrary value for scaling the vector on plotting. To automatize, maybe from file name value
+scale=0.1*ρ; # Scale the vector for making movies
 
 
 ########################################################################################
@@ -340,16 +348,16 @@ end
 
 """
 function calculate_forces_between_particles(Vect, Distmat, k)
-    sigma_n = 5/12; # particle radius
+    σ = 5/12; # particle radius
     r_adh = 1; # Cut off radius for adhesive forces
     k_adh = 0.75; # Adhesive forces
 
-    Fij_rep = (-k*(2*sigma_n.-Distmat))./(2*sigma_n)
-    Fij_adh = (k_adh*(2*sigma_n.-Distmat))./(2*sigma_n-r_adh)
+    Fij_rep = (-k*(2*σ.-Distmat))./(2*σ)
+    Fij_adh = (k_adh*(2*σ.-Distmat))./(2*σ-r_adh)
 
     # No force if particles too far from each other or if particle itself
-    Fij_rep[(Distmat .>= 2*sigma_n) .| (Distmat .== 0)] .= 0 
-    Fij_adh[(Distmat .< 2*sigma_n) .| (Distmat .> r_adh) .| (Distmat .== 0)] .= 0
+    Fij_rep[(Distmat .>= 2*σ) .| (Distmat .== 0)] .= 0
+    Fij_adh[(Distmat .< 2*σ) .| (Distmat .> r_adh) .| (Distmat .== 0)] .= 0
 
     # Fij is the force between particles
     Fij = Fij_rep .+ Fij_adh
@@ -361,17 +369,17 @@ end
 
 
 """
-    correct_n(r_dot, n, tau, dt)
+    correct_n(r_dot, n, τ, dt)
 
 Visceck-type n correction adapted from "Phys. Rev. E 74, 061908"
 """
-function correct_n(r_dot, n, tau, dt)
+function correct_n(r_dot, n, τ, dt)
     ncross = cat(dims=2,n[:,2].*r_dot[:,3]-n[:,3].*r_dot[:,2],
         -(n[:,1].*r_dot[:,3]-n[:,3].*r_dot[:,1]),
         n[:,1].*r_dot[:,2]-n[:,2].*r_dot[:,1]) ./
         (sqrt.(sum(r_dot.^2,dims=2))*ones(1,3))
 
-    n_cross_correction = (1/tau)*ncross*dt
+    n_cross_correction = (1/τ)*ncross*dt
 
     new_n = n-cat(dims=2,n[:,2].*n_cross_correction[:,3]-n[:,3].*n_cross_correction[:,2],
         -(n[:,1].*n_cross_correction[:,3]-n[:,3].*n_cross_correction[:,1]),
@@ -418,17 +426,17 @@ function simulate_next_step(tt, observe_r, face_neighbors, num_face, num_part, o
     v0 = 0.1; # velocity of particles
     v0_next = 0.1; # if velocity is to be changed after a certain number of timesteps
 
-    sigma_n = 5/12; # particle radius
+    σ = 5/12; # particle radius
 
     # Define parameters for the force calculations:
     # ---------------------------------------------
     k = 10.; # Elastic constant for repulsive forces
     k_next = 10.; # value of elastic constant after a certain number of timesteps
 
-    mu = 1.; # arbitrary mass of particle
-    tau = 1; #time of relaxation of collision between 2 particles
+    μ = 1.; # arbitrary mass of particle
+    τ = 1; #time of relaxation of collision between 2 particles
 
-    dt = 0.01*tau; # Step size
+    dt = 0.01*τ; # Step size
     plotstep = 0.1/dt; # Number of calculation between plot
 
     # if loop to change forces and velocity after some time because in
@@ -450,10 +458,10 @@ function simulate_next_step(tt, observe_r, face_neighbors, num_face, num_part, o
     Distmat = sqrt.(sum(Vect.^2,dims=3))[:,:,1]  # distance of each point with the others
 
     F_track = calculate_forces_between_particles(Vect, Distmat, k)  # calculate the force between particles
-    r_dot = P_perp(Norm_vect, v0.*n+mu.*F_track)  # velocity of each particle
+    r_dot = P_perp(Norm_vect, v0.*n+μ.*F_track)  # velocity of each particle
     r = r+r_dot*dt  # calculate next position
 
-    n = correct_n(r_dot, n, tau, dt)  # make a small correct for n according to Vicsek
+    n = correct_n(r_dot, n, τ, dt)  # make a small correct for n according to Vicsek
 
     # Norm_vect = ones(num_part,3);  # TODO: remove this line if it is not useful
 
@@ -517,7 +525,7 @@ function simulate_next_step(tt, observe_r, face_neighbors, num_face, num_part, o
     if rem(tt,plotstep)==0
         # %evaluate number of neighbourgs within 2.4 sigma cut off
         num_partic = ones(size(Distmat));
-        num_partic[(Distmat .== 0) .| (Distmat .> 2.4*sigma_n)] .= 0;
+        num_partic[(Distmat .== 0) .| (Distmat .> 2.4*σ)] .= 0;
         number_neighbours=sum(num_partic,dims=2);  # list of nearest neighbour to each particle
 
         N_color=[];
@@ -590,7 +598,7 @@ Faces_coord = cat(dim_data(vertices, faces, 1), dim_data(vertices, faces, 2), di
 
 time_points = Int(num_step/plotstep)
 v_order = zeros(time_points, 1)
-face_neighbors = find_face_neighbors(faces, Faces_coord)
+face_neighbors = find_face_neighbors(faces, Faces_coord)  # TODO: fix this function for the uv plot case
 
 
 # ########################################################################################
@@ -633,11 +641,11 @@ ax2 = Makie.Axis(figure[1, 2])
 colsize!(figure.layout, 1, Relative(2 / 3))
 
 mesh!(ax1, mesh_loaded)
-meshscatter!(ax1, observe_r, color = :black, markersize = 0.05)  # ! overgive the Observable the plotting function to TRACK it
+wireframe!(ax1, mesh_loaded, color=(:black, 0.2), linewidth=2, transparency=true)  # only for the asthetic
+meshscatter!(ax1, observe_r, color = :black, markersize = 0.05)  # overgive the Observable the plotting function to TRACK it
 arrows!(ax1, observe_r, observe_n, arrowsize = 0.05, linecolor = (:black, 0.7), linewidth = 0.02, lengthscale = scale)
 arrows!(ax1, observe_r, observe_nr_dot, arrowsize = 0.05, linecolor = (:red, 0.7), linewidth = 0.02, lengthscale = scale)
 arrows!(ax1, observe_r, observe_nr_dot_cross, arrowsize = 0.05, linecolor = (:blue, 0.7), linewidth = 0.02, lengthscale = scale)
-# wireframe!(ax1, mesh_loaded, color=(:black, 0.2), linewidth=2, transparency=true)  # only for the asthetic
 
 # Colorbar(fig[1, 4], hm, label="values", height=Relative(0.5))
 ylims!(ax2, 0, 1)
