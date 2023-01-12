@@ -2,7 +2,7 @@
 
 [![Generic badge](https://img.shields.io/badge/arXiv-1610.05987-green.svg)](https://arxiv.org/abs/1610.05987)
 [![Generic badge](https://img.shields.io/badge/Phys.Rev.E-95.062609-yellow.svg)](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.95.062609)
-![Generic badge](https://img.shields.io/badge/Matlab-R2022b-blue.svg)
+![Generic badge](https://img.shields.io/badge/Matlab-R2015b-blue.svg)
 [![Generic badge](https://img.shields.io/badge/License-AGPL3.0-orange.svg)](https://github.com/Sebastian-ehrig/Confined_active_particles/blob/main/LICENSE)
 
 ---
@@ -14,32 +14,6 @@ It is part of a wider research initiative in the context of pattern formation in
 The results of the simulation for ellipsoidal surfaces have been published in ["Curvature-controlled defect dynamics in active systems"]( https://journals.aps.org/pre/abstract/10.1103/PhysRevE.95.062609).
 
 The accepted version of the paper is available for free on arxiv: https://arxiv.org/abs/1610.05987.
-
----
-
-## Package management in Julia
-
-The `Project.toml` and `Manifest.toml` contain the package definitions for Julia.  
-This allwos us to manage packages with Julias built-in package manager.  
-This is how you manage packages with it:
-
-- Open a terminal in the root of the project
-- Run `julia -t 8` for parallel computing -> use at least 8 cores
-- type `]` (closing square bracket)
-- run `activate .`
-- use `instantiate` to install all packages
-- use `add <PackageName>` to add a new package
-- use `rm <PackageName>` to remove a package
-- use `up <PackageName>` to update a package to a newer version
-
-All your modifications to the packages will be reflected in the `Project.toml` and `Manifest.toml` respectively.
-
----
-
-## Requirements 
-
-For C++ please install Libigl and Eigen (https://libigl.github.io). Libigl has to be installed into this project folder.  
-For Matlab you need the Statistics toolbox installed.
 
 ---
 
