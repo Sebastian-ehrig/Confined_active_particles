@@ -31,7 +31,7 @@ visible_off = 0; % 0 to display figure while plotting them, 1 to just save
                  
 movie_making = 1; % 1 for movies, 0 for saving images
 
-num_part = 200; % number particles
+num_part = 860; % number particles
 v0 = 0.1; % velocity of particles
 v0_next = 0.1;% if velocity is to be changed after a certain number of timesteps
 
@@ -120,7 +120,7 @@ else
         extra_dist = sqrt((center_faces(1)-Faces_coord(i,1,1))^2+...
             (center_faces(2)-Faces_coord(i,1,2))^2+...
             (center_faces(3)-Faces_coord(i,1,3))^2);
-        radius_search = extra_dist+dist_motion;
+        radius_search = extra_dist
         Faces2center = Faces_coord-cat(3,center_faces(1)*ones(size(Faces)),...
             center_faces(2)*ones(size(Faces)),center_faces(3)*...
             ones(size(Faces)));
@@ -244,6 +244,8 @@ for i=1:num_part
     Dist2faces = sqrt(sum(face_coord_temp.^2,3));
     % Faces with closest point to r(i,:) and associated normal vectors
     index_binary = find(sum(Dist2faces == min(min(Dist2faces)),2) > 0);
+
+    
     face_coord_temp = Faces_coord(index_binary,:,:);
     N_temp = N(index_binary,:);
     particle = cat(2,ones(size(face_coord_temp(:,1,3)))*...
