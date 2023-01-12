@@ -35,3 +35,5 @@ octave-workspace
 movies/
 simulation_structure/*
 images/*
+.vscode/*
+libigl/*

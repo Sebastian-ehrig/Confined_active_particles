@@ -17,8 +17,7 @@ namestructure = 'ellipsoid_x4';
 % area of interest
 V_plot=ones(length(Faces(:,1)),1); % Will store the num of the faces in the ROI
 face_num_plot=[];
-Faces_coord = cat(3,[Vertex(Faces(:,1),1),Vertex(Faces(:,2),1),...
-    Vertex(Faces(:,3),1)],[Vertex(Faces(:,1),2),Vertex(Faces(:,2),2),...
+Faces_coord = cat(3,[Vertex(Faces(:,1),1),Vertex(Faces(:,2),1),Vertex(Faces(:,3),1)],[Vertex(Faces(:,1),2),Vertex(Faces(:,2),2),...
     Vertex(Faces(:,3),2)],[Vertex(Faces(:,1),3),Vertex(Faces(:,2),3),...
     Vertex(Faces(:,3),3)]);
 
@@ -32,7 +31,7 @@ visible_off = 0; % 0 to display figure while plotting them, 1 to just save
                  
 movie_making = 1; % 1 for movies, 0 for saving images
 
-num_part = 200; % number particles
+num_part = 860; % number particles
 v0 = 0.1; % velocity of particles
 v0_next = 0.1;% if velocity is to be changed after a certain number of timesteps
 
@@ -77,7 +76,6 @@ tot_F = zeros(num_step/plotstep,1);
 
 particle_info = struct;
 
-% TODO 
 name_data = [namestructure,'_N_',num2str(num_part),'_rho_',num2str(rho)...
         ,'_F_rep_',num2str(k),'_F_adh_',num2str(k_adh),'_tau_',num2str(tau),'_b_',num2str(b),...
         '_s',num2str(v0),'_t',num2str(num_step),'_fps',num2str(25)];
@@ -122,7 +120,7 @@ else
         extra_dist = sqrt((center_faces(1)-Faces_coord(i,1,1))^2+...
             (center_faces(2)-Faces_coord(i,1,2))^2+...
             (center_faces(3)-Faces_coord(i,1,3))^2);
-        radius_search = extra_dist+dist_motion;
+        radius_search = extra_dist
         Faces2center = Faces_coord-cat(3,center_faces(1)*ones(size(Faces)),...
             center_faces(2)*ones(size(Faces)),center_faces(3)*...
             ones(size(Faces)));
@@ -246,6 +244,8 @@ for i=1:num_part
     Dist2faces = sqrt(sum(face_coord_temp.^2,3));
     % Faces with closest point to r(i,:) and associated normal vectors
     index_binary = find(sum(Dist2faces == min(min(Dist2faces)),2) > 0);
+
+    
     face_coord_temp = Faces_coord(index_binary,:,:);
     N_temp = N(index_binary,:);
     particle = cat(2,ones(size(face_coord_temp(:,1,3)))*...
