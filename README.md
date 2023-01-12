@@ -17,9 +17,29 @@ The accepted version of the paper is available for free on arxiv: https://arxiv.
 
 ---
 
+## Package management in Julia
+
+The `Project.toml` and `Manifest.toml` contain the package definitions for Julia.  
+This allwos us to manage packages with Julias built-in package manager.  
+This is how you manage packages with it:
+
+- Open a terminal in the root of the project
+- Run `julia -t 8` for parallel computing -> use at least 8 cores
+- type `]` (closing square bracket)
+- run `activate .`
+- use `instantiate` to install all packages
+- use `add <PackageName>` to add a new package
+- use `rm <PackageName>` to remove a package
+- use `up <PackageName>` to update a package to a newer version
+
+All your modifications to the packages will be reflected in the `Project.toml` and `Manifest.toml` respectively.
+
+---
+
 ## Requirements 
 
-You need the Statistics toolbox from Matlab installed.
+For C++ please install Libigl and Eigen (https://libigl.github.io). Libigl has to be installed into this project folder.  
+For Matlab you need the Statistics toolbox installed.
 
 ---
 
